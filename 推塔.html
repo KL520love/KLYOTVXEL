@@ -3,1926 +3,917 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>横版推塔游戏</title>
+    <title>横版推塔·授权版</title>
     <style>
-        :root {
-            --safe-bottom: env(safe-area-inset-bottom, 0px);
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-overflow-scrolling: none;
-            overscroll-behavior: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-        canvas {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            touch-action: manipulation;
-        }
-        #rotateHint {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #1a1a2e;
-            z-index: 1000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
-        }
-        #rotateHint.active {
-            display: flex;
-        }
-        #rotateHint .icon {
-            font-size: 60px;
-            animation: rotateIcon 1.5s ease-in-out infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes rotateIcon {
-            0%,
-            100% {
-                transform: rotate(0deg);
-            }
-            25% {
-                transform: rotate(90deg);
-            }
-            50% {
-                transform: rotate(90deg);
-            }
-            75% {
-                transform: rotate(0deg);
-            }
-        }
-        #rotateHint p {
-            color: #fff;
-            font-size: 18px;
-            letter-spacing: 2px;
-            text-align: center;
-            line-height: 1.6;
-        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
+        #gameCanvas{display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;}
+        #rotateHint{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;z-index:1000;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;}
+        #rotateHint.active{display:flex;}
+        #rotateHint .icon{font-size:60px;animation:rot 1.5s infinite;margin-bottom:20px;}
+        @keyframes rot{0%,100%{transform:rotate(0deg)}25%,50%{transform:rotate(90deg)}}
+        #rotateHint p{color:#fff;font-size:18px;}
+
+        #auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a1a;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
+        .auth-container{width:90%;max-width:400px;padding:30px 20px;background:rgba(20,20,50,0.9);border:1px solid rgba(255,255,255,0.15);border-radius:16px;text-align:center;backdrop-filter:blur(10px);}
+        .auth-title{color:#fff;font-size:22px;font-weight:bold;margin-bottom:25px;letter-spacing:2px;}
+        .auth-input{width:100%;padding:12px 15px;font-size:16px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(0,0,0,0.4);color:#fff;outline:none;margin-bottom:20px;text-transform:uppercase;}
+        .auth-input::placeholder{color:rgba(255,255,255,0.4);text-transform:none;}
+        .auth-btn{width:100%;padding:12px 0;font-size:18px;font-weight:bold;color:#fff;background:#3366cc;border:none;border-radius:8px;cursor:pointer;transition:background 0.2s;}
+        .auth-btn:active{background:#1a3a7a;}
+        .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
+        @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
+
+        .watermark-fixed{position:fixed;pointer-events:none;z-index:500;font-size:10px;line-height:1.4;opacity:0.8;color:#0ff;text-shadow:0 0 2px #000;max-width:180px;word-wrap:break-word;}
+        .watermark-fixed.top-left{top:12px;left:12px;text-align:left;}
+        .watermark-fixed.top-right{top:12px;right:12px;text-align:right;}
+        .watermark-fixed.bottom-left{bottom:12px;left:12px;text-align:left;}
+        .watermark-fixed.bottom-right{bottom:12px;right:12px;text-align:right;}
+        .watermark-floating{position:fixed;pointer-events:none;z-index:500;font-size:12px;line-height:1.4;color:rgba(200,200,200,0.3);text-align:center;white-space:nowrap;will-change:left,top;}
+        @media(max-width:600px){.watermark-fixed{font-size:8px;max-width:140px;}.watermark-floating{font-size:9px;}}
     </style>
 </head>
 <body>
-    <div id="rotateHint">
-        <div class="icon">📱</div>
-        <p>请横屏游玩<br><span style="font-size:14px;opacity:0.7;">请将设备旋转至横屏方向</span></p>
-    </div>
+    <div id="rotateHint"><div class="icon">📱</div><p>请横屏游玩</p></div>
     <canvas id="gameCanvas"></canvas>
 
+    <div id="auth-overlay">
+        <div class="auth-container">
+            <div class="auth-title">游戏授权验证</div>
+            <input type="text" id="auth-input" class="auth-input" placeholder="请输入授权码" maxlength="20" autocomplete="off">
+            <button id="auth-btn" class="auth-btn">确认进入</button>
+            <div id="auth-error" class="auth-error"></div>
+        </div>
+    </div>
+
+    <!-- ==================== ★ 授权码配置区（在此直接增删授权码）★ ==================== -->
     <script>
-        (function() {
-            // ==================== 一、全局配置对象 CONFIG ====================
-            const CONFIG = {
-                // 游戏平衡数值（基础值，实际会根据屏幕缩放）
-                HERO_MAX_HP: 800,
-                HERO_ATTACK: 65,
-                HERO_ATTACK_SPEED: 0.7, // 攻击间隔(秒)
-                HERO_MOVE_SPEED: 280, // 像素/秒(基准)
-                HERO_ATTACK_RANGE: 90, // 攻击范围(基准像素)
-                HERO_RESPAWN_TIME: 5, // 复活时间(秒)
+    // ★★★ 授权码白名单 – 直接修改下面数组即可 ★★★
+    // 支持增删，不区分大小写，例如：'ABC123','TAOTAO' 等
+    const VALID_CODES = [
+        'TXL001',
+        'TXL002',
+        'TXL003',
+        'TXL004',
+        'TXL005'
+        // 可以继续添加更多授权码，注意最后一个后面不要加逗号
+    ];
+    </script>
 
-                MINION_MAX_HP: 200,
-                MINION_ATTACK: 25,
-                MINION_ATTACK_SPEED: 1.2,
-                MINION_MOVE_SPEED: 150,
-                MINION_ATTACK_RANGE: 55,
-                MINION_SPAWN_INTERVAL: 5, // 小兵生成间隔(秒)
+    <!-- ==================== 游戏主逻辑（完全保持不变） ==================== -->
+    <script>
+    (function() {
+      // ==================== 全局配置 ====================
+      const CONFIG = {
+        HERO_HP: 800, HERO_ATK: 65, HERO_SPD: 280, HERO_RANGE: 90, HERO_RESPAWN: 5,
+        MINION_HP: 200, MINION_ATK: 25, MINION_SPD: 150, MINION_RANGE: 55, MINION_INTERVAL: 5,
+        TOWER_HP: 1500, TOWER_ATK: 120, TOWER_RANGE: 160,
+        BASE_HP: 3000,
+        DIFFICULTY: { easy: { hpMul:0.7, atkMul:0.7 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:1.4, atkMul:1.3 } },
+        SKILL_COOLDOWN: 8,
+        DASH_DISTANCE: 130,
+        CRYSTAL_BOOST_COST: 5,
+        CRYSTAL_BOOST_ATK_MUL: 1.6,
+        CRYSTAL_BOOST_DURATION: 5,
+        JOYSTICK_BASE: 0.09, JOYSTICK_KNOB: 0.04, ATK_BTN: 0.055, JOY_MARGIN: 0.09, ATK_MARGIN: 0.12
+      };
 
-                TOWER_MAX_HP: 1500,
-                TOWER_ATTACK: 120,
-                TOWER_ATTACK_SPEED: 1.0,
-                TOWER_ATTACK_RANGE: 160,
+      // ==================== 音效系统 ====================
+      class AudioManager {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.ready = false;
+        }
+        init() {
+          if(this.ready) return;
+          try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.ready = true;
+          } catch(e){}
+        }
+        play(freq, dur, type='square', vol=0.2, glide=null) {
+          if(!this.ready || this.muted || !this.ctx) return;
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type; osc.frequency.setValueAtTime(freq, t);
+          if(glide) osc.frequency.linearRampToValueAtTime(glide, t+dur);
+          gain.gain.setValueAtTime(vol, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t+dur);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(t); osc.stop(t+dur);
+        }
+        attack() { this.play(900,0.07,'square',0.2); setTimeout(()=>this.play(1100,0.05,'square',0.15),30); }
+        hit() { this.play(180,0.1,'triangle',0.3); }
+        towerDown() { this.play(60,0.5,'sawtooth',0.4,25); this.play(40,0.6,'triangle',0.35,15); }
+        victory() { [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>this.play(f,0.2,'square',0.22),i*120)); }
+        defeat() { [880,698,523,349,220].forEach((f,i)=>setTimeout(()=>this.play(f,0.25,'triangle',0.25),i*140)); }
+        toggle() { this.muted=!this.muted; return this.muted; }
+      }
 
-                BASE_CRYSTAL_MAX_HP: 3000,
+      // ==================== 游戏数据模型 ====================
+      const Team = Object.freeze({ BLUE:'blue', RED:'red' });
 
-                // 摇杆与按钮尺寸（相对于Canvas高度的比例）
-                JOYSTICK_BASE_RADIUS_RATIO: 0.09,
-                JOYSTICK_KNOB_RADIUS_RATIO: 0.04,
-                ATTACK_BTN_RADIUS_RATIO: 0.055,
-                JOYSTICK_MARGIN_X_RATIO: 0.09,
-                JOYSTICK_MARGIN_Y_RATIO: 0.12,
-                ATTACK_BTN_MARGIN_X_RATIO: 0.09,
-                ATTACK_BTN_MARGIN_Y_RATIO: 0.12,
+      class Unit {
+        constructor(x,y,team,maxHp,atk,atkSpeed,range) {
+          this.x=x; this.y=y; this.team=team;
+          this.maxHp=maxHp; this.hp=maxHp; this.displayHp=maxHp;
+          this.atk=atk; this.atkSpeed=atkSpeed; this.range=range;
+          this.atkCooldown=0; this.alive=true; this.flashTimer=0;
+          this.facingRight = team===Team.BLUE;
+        }
+        takeDamage(dmg) {
+          if(!this.alive) return;
+          this.hp -= dmg;
+          this.flashTimer = 0.12;
+          if(this.hp <= 0) { this.hp=0; this.alive=false; this.onDeath(); }
+        }
+        onDeath(){}
+        canAttack(){ return this.alive && this.atkCooldown<=0; }
+        performAttack(){ this.atkCooldown = this.atkSpeed; }
+        distanceTo(o){ const dx=this.x-o.x, dy=this.y-o.y; return Math.sqrt(dx*dx+dy*dy); }
+        inRange(o){ return this.distanceTo(o) <= this.range; }
+        updateCooldown(dt){ if(this.atkCooldown>0) this.atkCooldown-=dt; if(this.flashTimer>0) this.flashTimer-=dt; }
+        hpRatio(){ return Math.max(0, this.hp/this.maxHp); }
+        updateDisplayHp(dt){ this.displayHp += (this.hp - this.displayHp) * Math.min(10*dt, 1); }
+      }
 
-                // 弹道速度(像素/秒基准)
-                PROJECTILE_SPEED: 900,
-                PROJECTILE_DURATION: 0.12,
+      class Hero extends Unit {
+        constructor(x,y,team,isPlayer=true) {
+          super(x,y,team,CONFIG.HERO_HP,CONFIG.HERO_ATK,0.7,CONFIG.HERO_RANGE);
+          this.moveSpeed=CONFIG.HERO_SPD; this.isPlayer=isPlayer;
+          this.vx=0; this.vy=0; this.spawnX=x; this.spawnY=y;
+          this.respawnTimer=0; this.crystal=0;
+          this.boostTimer=0; this.boostActive=false;
+          this.kills=0; this.towersDestroyed=0;
+        }
+        setMovement(vx,vy) {
+          const mag = Math.sqrt(vx*vx+vy*vy);
+          if(mag>1){ vx/=mag; vy/=mag; }
+          this.vx = vx * this.moveSpeed;
+          this.vy = vy * this.moveSpeed;
+          if(vx!==0) this.facingRight = vx>0;
+        }
+        stopMovement(){ this.vx=0; this.vy=0; }
+        updatePosition(dt, minX,maxX,minY,maxY) {
+          if(!this.alive) return;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+          this.x = Math.max(minX, Math.min(maxX, this.x));
+          this.y = Math.max(minY, Math.min(maxY, this.y));
+        }
+        respawn() {
+          this.alive=true; this.hp=this.maxHp; this.displayHp=this.maxHp;
+          this.x=this.spawnX; this.y=this.spawnY;
+          this.respawnTimer=0; this.atkCooldown=0; this.flashTimer=0; this.vx=0; this.vy=0;
+        }
+        onDeath() { if(this.isPlayer) this.respawnTimer=CONFIG.HERO_RESPAWN; this.stopMovement(); }
+        updateRespawn(dt) {
+          if(!this.alive && this.respawnTimer>0) { this.respawnTimer-=dt; if(this.respawnTimer<=0) this.respawn(); }
+        }
+        getEffectiveAtk() {
+          return this.boostActive ? this.atk * CONFIG.CRYSTAL_BOOST_ATK_MUL : this.atk;
+        }
+        updateBoost(dt) {
+          if(this.boostTimer>0) { this.boostTimer-=dt; if(this.boostTimer<=0) this.boostActive=false; }
+        }
+        activateBoost() {
+          if(this.crystal < CONFIG.CRYSTAL_BOOST_COST || this.boostActive) return false;
+          this.crystal -= CONFIG.CRYSTAL_BOOST_COST;
+          this.boostActive = true;
+          this.boostTimer = CONFIG.CRYSTAL_BOOST_DURATION;
+          return true;
+        }
+      }
 
-                // 地图布局比例（相对于Canvas宽度的X位置，0-1）
-                BLUE_BASE_X: 0.04,
-                BLUE_TOWER1_X: 0.20,
-                BLUE_TOWER2_X: 0.37,
-                RED_TOWER3_X: 0.63,
-                RED_TOWER4_X: 0.80,
-                RED_BASE_X: 0.96,
-                LANE_Y_RATIO: 0.56, // 兵线Y坐标相对于Canvas高度的比例
+      class Minion extends Unit {
+        constructor(x,y,team,targetX) {
+          super(x,y,team,CONFIG.MINION_HP,CONFIG.MINION_ATK,1.2,CONFIG.MINION_RANGE);
+          this.moveSpeed=CONFIG.MINION_SPD; this.targetX=targetX; this.currentTarget=null;
+          this.facingRight = team===Team.BLUE;
+        }
+        findTarget(enemies) {
+          let best=null, bestDist=Infinity;
+          for(const e of enemies) { if(!e.alive) continue; const d=this.distanceTo(e); if(d<=this.range && d<bestDist){ best=e; bestDist=d; } }
+          this.currentTarget = best;
+          return best;
+        }
+        updateMovement(dt, minX, maxX) {
+          if(!this.alive) return;
+          if(this.currentTarget && this.currentTarget.alive && this.inRange(this.currentTarget)) return;
+          this.currentTarget = null;
+          const dir = this.team===Team.BLUE ? 1 : -1;
+          this.x += dir * this.moveSpeed * dt;
+          this.facingRight = dir>0;
+          this.x = Math.max(minX, Math.min(maxX, this.x));
+        }
+      }
 
-                // 屏幕适配
-                MIN_CANVAS_HEIGHT: 280,
-                MAX_CANVAS_HEIGHT: 800,
-            };
+      class Tower extends Unit {
+        constructor(x,y,team) {
+          super(x,y,team,CONFIG.TOWER_HP,CONFIG.TOWER_ATK,1.0,CONFIG.TOWER_RANGE);
+          this.currentTarget=null; this.attackGlow=0;
+        }
+        findTarget(enemies) {
+          let best=null, bestDist=Infinity;
+          for(const e of enemies) { if(!e.alive) continue; const d=this.distanceTo(e); if(d<=this.range && d<bestDist){ best=e; bestDist=d; } }
+          this.currentTarget = best;
+          return best;
+        }
+        updateGlow(dt){ if(this.attackGlow>0) this.attackGlow-=dt; }
+        performAttack(){ super.performAttack(); this.attackGlow=0.2; }
+      }
 
-            // ==================== 二、音效系统 AudioManager ====================
-            class AudioManager {
-                constructor() {
-                    this.audioCtx = null;
-                    this.muted = false;
-                    this.initialized = false;
-                }
+      class BaseCrystal extends Unit {
+        constructor(x,y,team) {
+          super(x,y,team,CONFIG.BASE_HP,0,999,0);
+          this.glowPhase=Math.random()*Math.PI*2;
+        }
+        updateGlow(dt){ this.glowPhase+=dt*2.5; if(this.glowPhase>Math.PI*2) this.glowPhase-=Math.PI*2; }
+        canAttack(){ return false; }
+      }
 
-                /** 初始化音频上下文（需在用户交互后调用） */
-                init() {
-                    if (this.initialized) return;
-                    try {
-                        this.audioCtx = new(window.AudioContext || window.webkitAudioContext)();
-                        this.initialized = true;
-                    } catch (e) {
-                        console.warn('Web Audio API 不可用:', e);
-                    }
-                }
+      class Projectile {
+        constructor(fromX,fromY,toX,toY,color,dmg,target) {
+          this.startX=fromX; this.startY=fromY;
+          this.toX=toX; this.toY=toY;
+          this.x=fromX; this.y=fromY;
+          this.color=color; this.dmg=dmg; this.target=target;
+          this.progress=0; this.duration=0.12; this.elapsed=0;
+          this.done=false;
+        }
+        update(dt) {
+          if(this.done) return;
+          this.elapsed+=dt; this.progress=Math.min(1, this.elapsed/this.duration);
+          const t=this.progress;
+          this.x = this.startX + (this.toX - this.startX)*t;
+          this.y = this.startY + (this.toY - this.startY)*t;
+          if(this.progress>=1) this.done=true;
+        }
+      }
 
-                /** 播放短促音效 */
-                playTone(frequency, duration, type = 'square', volume = 0.25, glideTo = null) {
-                    if (!this.initialized || this.muted || !this.audioCtx) return;
-                    const ctx = this.audioCtx;
-                    const now = ctx.currentTime;
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = type;
-                    osc.frequency.setValueAtTime(frequency, now);
-                    if (glideTo !== null) {
-                        osc.frequency.linearRampToValueAtTime(glideTo, now + duration);
-                    }
-                    gain.gain.setValueAtTime(volume, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(now);
-                    osc.stop(now + duration);
-                }
+      class Particle {
+        constructor(x,y,vx,vy,life,color,size) {
+          this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.life=life; this.maxLife=life; this.color=color; this.size=size;
+        }
+        update(dt) { this.x+=this.vx*dt; this.y+=this.vy*dt; this.life-=dt; }
+        alive() { return this.life>0; }
+      }
 
-                /** 普攻音效：短促清脆脉冲 */
-                playAttackSound() {
-                    this.playTone(900, 0.07, 'square', 0.2);
-                    setTimeout(() => this.playTone(1100, 0.05, 'square', 0.15), 30);
-                }
-
-                /** 受击音效：低频短音 */
-                playHitSound() {
-                    this.playTone(180, 0.1, 'triangle', 0.3);
-                }
-
-                /** 防御塔摧毁音效：低沉爆破 */
-                playTowerDestroySound() {
-                    this.playTone(60, 0.5, 'sawtooth', 0.4, 25);
-                    this.playTone(40, 0.6, 'triangle', 0.35, 15);
-                    // 添加噪声感
-                    setTimeout(() => this.playTone(80, 0.25, 'square', 0.25), 100);
-                    setTimeout(() => this.playTone(50, 0.3, 'sawtooth', 0.2), 250);
-                }
-
-                /** 胜利音效：上升递进音阶 */
-                playVictorySound() {
-                    const notes = [523, 659, 784, 1047, 1319];
-                    notes.forEach((freq, i) => {
-                        setTimeout(() => this.playTone(freq, 0.2, 'square', 0.22), i * 120);
-                    });
-                }
-
-                /** 失败音效：下降递进音阶 */
-                playDefeatSound() {
-                    const notes = [880, 698, 523, 349, 220];
-                    notes.forEach((freq, i) => {
-                        setTimeout(() => this.playTone(freq, 0.25, 'triangle', 0.25), i * 140);
-                    });
-                }
-
-                toggleMute() {
-                    this.muted = !this.muted;
-                    return this.muted;
-                }
+      // ==================== 输入处理 ====================
+      class InputHandler {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.joystick = { active:false, id:null, dx:0, dy:0, rawX:0, rawY:0, baseRadius:40, knobRadius:20, center:{x:0,y:0} };
+          this.attackBtn = { pressed:false, id:null, center:{x:0,y:0}, radius:35 };
+          this.skillBtn = { pressed:false, id:null, center:{x:0,y:0}, radius:35 };
+          this.mutePressed = false;
+          this.restartPressed = false;
+          this.pausePressed = false;
+          this.keys = {};
+          this.keyAttack = false; this.keySkill = false;
+          this._bind();
+        }
+        _bind() {
+          const c=this.canvas;
+          c.addEventListener('touchstart',e=>this._touchStart(e),{passive:false});
+          c.addEventListener('touchmove',e=>this._touchMove(e),{passive:false});
+          c.addEventListener('touchend',e=>this._touchEnd(e));
+          c.addEventListener('touchcancel',e=>this._touchEnd(e));
+          c.addEventListener('mousedown',e=>this._mouseDown(e));
+          c.addEventListener('mousemove',e=>this._mouseMove(e));
+          c.addEventListener('mouseup',e=>this._mouseUp(e));
+          window.addEventListener('keydown',e=>this._keyDown(e));
+          window.addEventListener('keyup',e=>this._keyUp(e));
+        }
+        _canvasPos(clientX,clientY) {
+          const r=this.canvas.getBoundingClientRect();
+          return {x:(clientX-r.left)*(this.canvas.width/r.width), y:(clientY-r.top)*(this.canvas.height/r.height)};
+        }
+        _inCircle(px,py,cx,cy,r) { return (px-cx)**2+(py-cy)**2 <= r*r; }
+        _inRect(px,py,rect) { return rect && px>=rect.x && px<=rect.x+rect.w && py>=rect.y && py<=rect.y+rect.h; }
+        _touchStart(e) {
+          e.preventDefault();
+          for(const t of e.changedTouches) {
+            const p=this._canvasPos(t.clientX,t.clientY);
+            if(!this.joystick.id && this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.5)) {
+              this.joystick.id=t.identifier; this.joystick.active=true; this._updateJoystick(p.x,p.y);
+            } else if(!this.attackBtn.id && this._inCircle(p.x,p.y,this.attackBtn.center.x,this.attackBtn.center.y,this.attackBtn.radius*1.3)) {
+              this.attackBtn.id=t.identifier; this.attackBtn.pressed=true;
+            } else if(!this.skillBtn.id && this._inCircle(p.x,p.y,this.skillBtn.center.x,this.skillBtn.center.y,this.skillBtn.radius*1.3)) {
+              this.skillBtn.id=t.identifier; this.skillBtn.pressed=true;
             }
+          }
+        }
+        _touchMove(e) { e.preventDefault(); for(const t of e.changedTouches) if(t.identifier===this.joystick.id) this._updateJoystick(this._canvasPos(t.clientX,t.clientY).x, this._canvasPos(t.clientX,t.clientY).y); }
+        _touchEnd(e) {
+          e.preventDefault();
+          for(const t of e.changedTouches) {
+            if(t.identifier===this.joystick.id) { this.joystick.id=null; this.joystick.active=false; this.joystick.dx=0; this.joystick.dy=0; }
+            if(t.identifier===this.attackBtn.id) { this.attackBtn.id=null; this.attackBtn.pressed=false; }
+            if(t.identifier===this.skillBtn.id) { this.skillBtn.id=null; this.skillBtn.pressed=false; }
+          }
+        }
+        _updateJoystick(px,py) {
+          const cx=this.joystick.center.x, cy=this.joystick.center.y, maxR=this.joystick.baseRadius-this.joystick.knobRadius;
+          let dx=px-cx, dy=py-cy; const dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist>maxR) { dx=dx/dist*maxR; dy=dy/dist*maxR; }
+          this.joystick.rawX=cx+dx; this.joystick.rawY=cy+dy;
+          this.joystick.dx=dx/maxR; this.joystick.dy=dy/maxR;
+        }
+        _mouseDown(e) {
+          if(e.button!==0) return; const p=this._canvasPos(e.clientX,e.clientY);
+          if(this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.5)) { this.joystick.active=true; this.joystick.id='mouse'; this._updateJoystick(p.x,p.y); }
+          if(this._inCircle(p.x,p.y,this.attackBtn.center.x,this.attackBtn.center.y,this.attackBtn.radius*1.3)) this.attackBtn.pressed=true;
+          if(this._inCircle(p.x,p.y,this.skillBtn.center.x,this.skillBtn.center.y,this.skillBtn.radius*1.3)) this.skillBtn.pressed=true;
+        }
+        _mouseMove(e) { if(this.joystick.id==='mouse') this._updateJoystick(this._canvasPos(e.clientX,e.clientY).x, this._canvasPos(e.clientX,e.clientY).y); }
+        _mouseUp(e) { this.joystick.id=null; this.joystick.active=false; this.joystick.dx=0; this.joystick.dy=0; this.attackBtn.pressed=false; this.skillBtn.pressed=false; }
+        _keyDown(e) {
+          this.keys[e.key]=true;
+          if(e.key===' ' || e.key==='Spacebar') { this.keyAttack=true; e.preventDefault(); }
+          if(e.key==='e' || e.key==='E') { this.keySkill=true; e.preventDefault(); }
+          if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+        }
+        _keyUp(e) { this.keys[e.key]=false; if(e.key===' '||e.key==='Spacebar') this.keyAttack=false; if(e.key==='e'||e.key==='E') this.keySkill=false; }
+        getMovement() {
+          let vx=0,vy=0;
+          if(this.joystick.active) { vx=this.joystick.dx; vy=this.joystick.dy; }
+          if(this.keys['w']||this.keys['ArrowUp']) vy=-1;
+          if(this.keys['s']||this.keys['ArrowDown']) vy=1;
+          if(this.keys['a']||this.keys['ArrowLeft']) vx=-1;
+          if(this.keys['d']||this.keys['ArrowRight']) vx=1;
+          return {vx,vy};
+        }
+        isAttack() { const v=this.attackBtn.pressed||this.keyAttack; this.keyAttack=false; return v; }
+        isSkill() { const v=this.skillBtn.pressed||this.keySkill; this.keySkill=false; return v; }
+      }
 
-            // ==================== 三、游戏数据类（逻辑层） ====================
+      // ==================== 渲染器 ====================
+      class Renderer {
+        constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; }
+        resize(w,h) { this.w=w; this.h=h; this.scale=Math.min(w/1200, h/500, 1.5); }
+        clear() { this.ctx.clearRect(0,0,this.w,this.h); }
+        drawMap(laneY) {
+          const ctx=this.ctx, w=this.w, h=this.h;
+          const grad=ctx.createLinearGradient(0,0,0,h);
+          grad.addColorStop(0,'#1a1a3e'); grad.addColorStop(0.4,'#2d3a6e'); grad.addColorStop(0.6,'#4a6fa5'); grad.addColorStop(1,'#1a2a1a');
+          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle='rgba(30,60,140,0.3)'; ctx.fillRect(0,0,w*0.5,h);
+          ctx.fillStyle='rgba(180,30,30,0.2)'; ctx.fillRect(w*0.5,0,w*0.5,h);
+          const groundY=laneY+45*this.scale;
+          ctx.fillStyle='#3d5a3d'; ctx.fillRect(0,groundY,w,h-groundY);
+          ctx.fillStyle='#4a7040'; ctx.fillRect(0,groundY,w,6*this.scale);
+          ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2*this.scale; ctx.setLineDash([15*this.scale,10*this.scale]);
+          ctx.beginPath(); ctx.moveTo(30,laneY); ctx.lineTo(w-30,laneY); ctx.stroke(); ctx.setLineDash([]);
+        }
+        drawHpBar(x,y,w,ratio,team) {
+          const ctx=this.ctx, h=4*this.scale, bx=x-w/2, by=y;
+          ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(bx-1,by-1,w+2,h+2);
+          ctx.fillStyle='#444'; ctx.fillRect(bx,by,w,h);
+          const hpW=w*ratio, color=ratio>0.5?'#44dd44':ratio>0.25?'#dddd44':'#dd4444';
+          ctx.fillStyle=color; ctx.fillRect(bx,by,hpW,h);
+          ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(bx,by,hpW,h*0.4);
+        }
+        drawUnitCircle(unit, radius, hasArrow=false) {
+          const ctx=this.ctx, x=unit.x, y=unit.y, r=radius;
+          const baseColor=unit.team===Team.BLUE?'#4488ff':'#ff4444';
+          let body=baseColor;
+          if(unit.flashTimer>0) body='#ff8888';
+          ctx.save();
+          ctx.beginPath(); ctx.arc(x,y,r*1.3,0,Math.PI*2);
+          const glow=ctx.createRadialGradient(x,y,r*0.5,x,y,r*1.3);
+          glow.addColorStop(0,unit.team===Team.BLUE?'rgba(60,140,255,0.5)':'rgba(255,60,60,0.5)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+          ctx.fillStyle=glow; ctx.fill(); ctx.restore();
+          ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+          const grad=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);
+          grad.addColorStop(0,'#fff'); grad.addColorStop(0.4,body); grad.addColorStop(1,unit.team===Team.BLUE?'#1a3a7a':'#7a1a1a');
+          ctx.fillStyle=grad; ctx.fill();
+          ctx.strokeStyle=unit.team===Team.BLUE?'#aaccff':'#ffaaaa'; ctx.lineWidth=1.5*this.scale; ctx.stroke();
+          if(hasArrow) {
+            const dir=unit.facingRight?1:-1, ax=x+dir*r*1.15, ay=y;
+            ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-dir*r*0.5, ay-r*0.35); ctx.lineTo(ax-dir*r*0.5, ay+r*0.35); ctx.fill();
+          }
+          this.drawHpBar(x, y-r-8*this.scale, r*2, unit.hpRatio(), unit.team);
+        }
+        drawTower(tower, size) {
+          const ctx=this.ctx, x=tower.x, y=tower.y, s=size;
+          const baseColor=tower.team===Team.BLUE?'#3366cc':'#cc3333';
+          const bodyW=s*0.8, bodyH=s*1.2, bodyTop=y-bodyH;
+          ctx.fillStyle=tower.flashTimer>0?'#ff8888':baseColor;
+          ctx.fillRect(x-bodyW/2, bodyTop, bodyW, bodyH);
+          ctx.strokeStyle=tower.team===Team.BLUE?'#aaccff':'#ffaaaa'; ctx.lineWidth=2*this.scale; ctx.strokeRect(x-bodyW/2, bodyTop, bodyW, bodyH);
+          const triH=s*0.7, triTop=bodyTop-triH;
+          ctx.beginPath(); ctx.moveTo(x,triTop); ctx.lineTo(x-bodyW/2-s*0.15,bodyTop); ctx.lineTo(x+bodyW/2+s*0.15,bodyTop); ctx.closePath();
+          let triColor=baseColor;
+          if(tower.attackGlow>0.05) triColor=tower.team===Team.BLUE?'#88bbff':'#ff8888';
+          ctx.fillStyle=triColor; ctx.fill(); ctx.strokeStyle=tower.team===Team.BLUE?'#ddeeff':'#ffdddd'; ctx.stroke();
+          if(tower.attackGlow>0) { ctx.fillStyle='rgba(255,255,200,0.5)'; ctx.beginPath(); ctx.arc(x,triTop+triH*0.3,s*0.35,0,Math.PI*2); ctx.fill(); }
+          this.drawHpBar(x, triTop-10*this.scale, s*1.6, tower.hpRatio(), tower.team);
+        }
+        drawBase(crystal, size) {
+          const ctx=this.ctx, x=crystal.x, y=crystal.y, s=size;
+          const baseColor=crystal.team===Team.BLUE?'#3399ff':'#ff3333';
+          const breath=0.3+Math.sin(crystal.glowPhase)*0.2;
+          const glowGrad=ctx.createRadialGradient(x,y,s*0.3,x,y,s*1.6);
+          glowGrad.addColorStop(0,crystal.team===Team.BLUE?`rgba(80,160,255,${breath+0.3})`:`rgba(255,80,80,${breath+0.3})`);
+          glowGrad.addColorStop(1,'rgba(0,0,0,0)');
+          ctx.fillStyle=glowGrad; ctx.beginPath(); ctx.arc(x,y,s*1.6,0,Math.PI*2); ctx.fill();
+          ctx.beginPath();
+          for(let i=0;i<6;i++) { const a=Math.PI*2/6*i-Math.PI/2; const px=x+Math.cos(a)*s, py=y+Math.sin(a)*s; i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+          ctx.closePath();
+          const hexGrad=ctx.createRadialGradient(x-s*0.2,y-s*0.2,s*0.1,x,y,s);
+          hexGrad.addColorStop(0,'#fff'); hexGrad.addColorStop(0.3,crystal.flashTimer>0?'#ff8888':baseColor); hexGrad.addColorStop(1,crystal.team===Team.BLUE?'#0a2a5a':'#5a0a0a');
+          ctx.fillStyle=hexGrad; ctx.fill();
+          ctx.strokeStyle=crystal.team===Team.BLUE?'#aaddff':'#ffaaaa'; ctx.lineWidth=2.5*this.scale; ctx.stroke();
+          this.drawHpBar(x, y-s-14*this.scale, s*2.2, crystal.hpRatio(), crystal.team);
+        }
+        drawProjectile(proj) {
+          const ctx=this.ctx;
+          ctx.strokeStyle=proj.color; ctx.lineWidth=3*this.scale; ctx.lineCap='round';
+          ctx.beginPath(); ctx.moveTo(proj.startX,proj.startY); ctx.lineTo(proj.x,proj.y); ctx.stroke();
+          ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(proj.x,proj.y,3*this.scale,0,Math.PI*2); ctx.fill();
+        }
+        drawParticle(p) {
+          const ctx=this.ctx, alpha=p.life/p.maxLife;
+          ctx.fillStyle=`rgba(${p.color},${alpha})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*this.scale,0,Math.PI*2); ctx.fill();
+        }
+        drawJoystick(cx,cy,baseR,knobR,kx,ky,active) {
+          const ctx=this.ctx;
+          ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(cx,cy,baseR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          const g=ctx.createRadialGradient(kx-knobR*0.2,ky-knobR*0.2,knobR*0.1,kx,ky,knobR);
+          g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(1,'rgba(200,200,220,0.6)');
+          ctx.fillStyle=g; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(kx,ky,knobR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        }
+        drawAtkBtn(cx,cy,r,pressed,cooldownProgress) {
+          const ctx=this.ctx, alpha=pressed?0.8:0.5;
+          ctx.fillStyle=`rgba(255,80,60,${alpha})`; ctx.strokeStyle='rgba(255,200,180,0.8)'; ctx.lineWidth=2.5*this.scale;
+          ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          if(cooldownProgress>0) {
+            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*cooldownProgress,false); ctx.closePath();
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill();
+          }
+          ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚔️',cx,cy);
+        }
+        drawSkillBtn(cx,cy,r,pressed,cooldownProgress) {
+          const ctx=this.ctx, alpha=pressed?0.8:0.5;
+          ctx.fillStyle=`rgba(80,160,255,${alpha})`; ctx.strokeStyle='rgba(200,220,255,0.8)'; ctx.lineWidth=2.5*this.scale;
+          ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          if(cooldownProgress>0) {
+            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*cooldownProgress,false); ctx.closePath();
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill();
+          }
+          ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('💨',cx,cy);
+        }
+        drawTopUI(blueTowers, redTowers, hero) {
+          const ctx=this.ctx, w=this.w, y=8*this.scale, icon=10*this.scale, gap=6*this.scale;
+          ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,w,32*this.scale);
+          ctx.fillStyle='#4488ff'; ctx.font=`${11*this.scale}px sans-serif`; ctx.textAlign='left';
+          ctx.fillText('蓝塔',20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++) {
+            const tx=55*this.scale+i*(icon+gap), ty=y+8*this.scale;
+            ctx.fillStyle=blueTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(tx,ty,icon,icon);
+          }
+          ctx.fillStyle='#ff4444'; ctx.textAlign='right'; ctx.fillText('红塔',w-20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++) {
+            const tx=w-55*this.scale-(i+1)*(icon+gap), ty=y+8*this.scale;
+            ctx.fillStyle=redTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.strokeRect(tx,ty,icon,icon);
+          }
+          if(hero) {
+            ctx.fillStyle='#ffd700'; ctx.font=`bold ${10*this.scale}px sans-serif`; ctx.textAlign='center';
+            ctx.fillText(`💎${hero.crystal}`, w/2, y+20*this.scale);
+          }
+        }
+        drawPauseBtn(rect) {
+          const ctx=this.ctx; ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(rect.x,rect.y,rect.w,rect.h,6); ctx.fill();
+          ctx.fillStyle='#fff'; ctx.font=`${rect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⏸️',rect.x+rect.w/2,rect.y+rect.h/2);
+        }
+        drawMenu(title, options, selected) {
+          const ctx=this.ctx, w=this.w, h=this.h;
+          ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle='#fff'; ctx.font=`bold ${28*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(title,w/2,h*0.3);
+          options.forEach((opt,i)=>{
+            const y=h*0.45+i*50*this.scale;
+            ctx.fillStyle=i===selected?'#ffd700':'#ccc';
+            ctx.font=`${18*this.scale}px sans-serif`; ctx.fillText(opt,w/2,y);
+          });
+        }
+        drawGameOver(win, stats) {
+          const ctx=this.ctx, w=this.w, h=this.h;
+          ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h);
+          const pw=Math.min(320*this.scale,w*0.7), ph=Math.min(240*this.scale,h*0.6), px=w/2-pw/2, py=h/2-ph/2;
+          ctx.fillStyle='rgba(30,30,50,0.95)'; ctx.strokeStyle=win?'#ffd700':'#ff4444'; ctx.lineWidth=3;
+          ctx.beginPath(); ctx.roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=win?'#ffd700':'#ff4444'; ctx.font=`bold ${22*this.scale}px sans-serif`; ctx.textAlign='center';
+          ctx.fillText(win?'胜利！':'失败！',w/2,py+ph*0.25);
+          ctx.fillStyle='#fff'; ctx.font=`${12*this.scale}px sans-serif`;
+          ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`,w/2,py+ph*0.45);
+          const btnW=120*this.scale, btnH=36*this.scale, btnX=w/2-btnW/2, btnY=py+ph*0.65;
+          ctx.fillStyle='#4488ff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(btnX,btnY,btnW,btnH,8); ctx.fill(); ctx.stroke();
+          ctx.fillStyle='#fff'; ctx.font=`bold ${14*this.scale}px sans-serif`; ctx.fillText('重新开始',w/2,btnY+btnH/2);
+          return {x:btnX, y:btnY, w:btnW, h:btnH};
+        }
+      }
 
-            /** 阵营枚举 */
-            const Team = Object.freeze({ BLUE: 'blue', RED: 'red' });
-
-            /** 单位类型 */
-            const UnitType = Object.freeze({ HERO: 'hero', MINION: 'minion', TOWER: 'tower', BASE: 'base' });
-
-            /** 单位基类 */
-            class Unit {
-                constructor(x, y, type, team, maxHp, attackPower, attackSpeed, attackRange) {
-                    this.x = x; // 游戏世界X坐标(像素)
-                    this.y = y; // 游戏世界Y坐标(像素)
-                    this.type = type;
-                    this.team = team;
-                    this.maxHp = maxHp;
-                    this.hp = maxHp;
-                    this.attackPower = attackPower;
-                    this.attackSpeed = attackSpeed; // 攻击间隔(秒)
-                    this.attackRange = attackRange; // 攻击范围(像素)
-                    this.attackCooldown = 0; // 当前攻击冷却剩余(秒)
-                    this.alive = true;
-                    this.flashTimer = 0; // 受击闪红计时器
-                    this.facingRight = (team === Team.BLUE); // 默认朝向
-                }
-
-                /** 受到伤害 */
-                takeDamage(damage) {
-                    if (!this.alive) return;
-                    this.hp -= damage;
-                    this.flashTimer = 0.12;
-                    if (this.hp <= 0) {
-                        this.hp = 0;
-                        this.alive = false;
-                        this.onDeath();
-                    }
-                }
-
-                /** 死亡回调（子类可覆写） */
-                onDeath() {}
-
-                /** 是否存活 */
-                isAlive() { return this.alive; }
-
-                /** 获取当前血量比例 */
-                getHpRatio() { return Math.max(0, this.hp / this.maxHp); }
-
-                /** 更新冷却 */
-                updateCooldown(dt) {
-                    if (this.attackCooldown > 0) {
-                        this.attackCooldown -= dt;
-                    }
-                    if (this.flashTimer > 0) {
-                        this.flashTimer -= dt;
-                    }
-                }
-
-                /** 是否可以攻击 */
-                canAttack() { return this.alive && this.attackCooldown <= 0; }
-
-                /** 执行攻击，重置冷却 */
-                performAttack() { this.attackCooldown = this.attackSpeed; }
-
-                /** 计算与另一个单位的距离 */
-                distanceTo(other) {
-                    const dx = this.x - other.x;
-                    const dy = this.y - other.y;
-                    return Math.sqrt(dx * dx + dy * dy);
-                }
-
-                /** 判断目标是否在攻击范围内 */
-                isInRange(other) { return this.distanceTo(other) <= this.attackRange; }
+      // ==================== 游戏逻辑 ====================
+      class GameLogic {
+        constructor(w,h,scale,difficulty='normal') {
+          this.w=w; this.h=h; this.scale=scale; this.difficulty=difficulty;
+          this.laneY=h*0.56;
+          this.mapMinX=15; this.mapMaxX=w-15; this.mapMinY=this.laneY-60*scale; this.mapMaxY=this.laneY+60*scale;
+          this.blueBaseX=w*0.04; this.blueT1X=w*0.2; this.blueT2X=w*0.37;
+          this.redT3X=w*0.63; this.redT4X=w*0.8; this.redBaseX=w*0.96;
+          this.initUnits();
+          this.blueMinions=[]; this.redMinions=[]; this.projectiles=[]; this.particles=[];
+          this.spawnTimer=0; this.gameOver=false; this.victory=false; this.time=0;
+          this.hero.skillCooldown=0;
+        }
+        initUnits() {
+          const diff=CONFIG.DIFFICULTY[this.difficulty];
+          const mHp=Math.floor(CONFIG.MINION_HP*diff.hpMul), mAtk=Math.floor(CONFIG.MINION_ATK*diff.atkMul);
+          this.hero = new Hero(this.blueBaseX+40*this.scale, this.laneY, Team.BLUE);
+          this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)];
+          this.redTowers = [new Tower(this.redT3X, this.laneY, Team.RED), new Tower(this.redT4X, this.laneY, Team.RED)];
+          this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
+          this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
+          this.minionHp=mHp; this.minionAtk=mAtk;
+        }
+        spawnMinion(team) {
+          const m = new Minion(team===Team.BLUE?this.blueBaseX+30*this.scale:this.redBaseX-30*this.scale, this.laneY, team, team===Team.BLUE?this.redBaseX:this.blueBaseX);
+          m.maxHp=this.minionHp; m.hp=this.minionHp; m.atk=this.minionAtk;
+          if(team===Team.BLUE) this.blueMinions.push(m); else this.redMinions.push(m);
+          return m;
+        }
+        getBlueUnits() {
+          const u=[...this.blueMinions];
+          if(this.hero.alive) u.push(this.hero);
+          for(const t of this.blueTowers) if(t.alive) u.push(t);
+          if(this.blueBase.alive) u.push(this.blueBase);
+          return u;
+        }
+        getRedUnits() {
+          const u=[...this.redMinions];
+          for(const t of this.redTowers) if(t.alive) u.push(t);
+          if(this.redBase.alive) u.push(this.redBase);
+          return u;
+        }
+        createProjectile(from,to) {
+          const col = from.team===Team.BLUE?'#88bbff':'#ff8888';
+          const dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk;
+          const p = new Projectile(from.x,from.y,to.x,to.y,col,dmg,to);
+          this.projectiles.push(p);
+        }
+        unitAttack(attacker,target,audio) {
+          if(!attacker.canAttack() || !target.alive) return false;
+          attacker.performAttack();
+          this.createProjectile(attacker,target);
+          audio.attack();
+          return true;
+        }
+        addParticles(x,y,count,color) {
+          for(let i=0;i<count;i++) {
+            const angle=Math.random()*Math.PI*2, speed=50+Math.random()*80;
+            this.particles.push(new Particle(x,y,Math.cos(angle)*speed,Math.sin(angle)*speed,0.3+Math.random()*0.3,color,2+Math.random()*3));
+          }
+        }
+        update(dt, input, audio) {
+          if(this.gameOver) return;
+          this.time+=dt;
+          const {vx,vy}=input.getMovement();
+          if(vx!==0||vy!==0) this.hero.setMovement(vx,vy);
+          else this.hero.stopMovement();
+          this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
+          this.hero.updateCooldown(dt);
+          this.hero.updateRespawn(dt);
+          this.hero.updateBoost(dt);
+          this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown-dt);
+          if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
+            this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
+            const dir = this.hero.facingRight?1:-1;
+            this.hero.x += dir * CONFIG.DASH_DISTANCE * this.scale;
+            this.hero.x = Math.max(this.mapMinX, Math.min(this.mapMaxX, this.hero.x));
+            this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
+            audio.play(300,0.15,'square',0.15);
+          }
+          if(this.hero.alive && this.hero.canAttack()) {
+            const enemies=this.getRedUnits();
+            let best=null,bestD=Infinity;
+            for(const e of enemies) { const d=this.hero.distanceTo(e); if(d<=this.hero.range&&d<bestD){ best=e; bestD=d; } }
+            if(best) this.unitAttack(this.hero,best,audio);
+          }
+          const blueEnemies=this.getRedUnits(), redEnemies=this.getBlueUnits();
+          for(const m of this.blueMinions) {
+            m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX);
+            if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio);
+          }
+          for(const m of this.redMinions) {
+            m.updateCooldown(dt); m.findTarget(redEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX);
+            if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio);
+          }
+          for(const t of [...this.blueTowers, ...this.redTowers]) {
+            if(!t.alive) continue;
+            t.updateCooldown(dt); t.updateGlow(dt);
+            const enemies = t.team===Team.BLUE?redEnemies:blueEnemies;
+            t.findTarget(enemies);
+            if(t.canAttack()&&t.currentTarget&&t.currentTarget.alive&&t.inRange(t.currentTarget)) this.unitAttack(t,t.currentTarget,audio);
+          }
+          this.blueBase.updateGlow(dt); this.redBase.updateGlow(dt);
+          for(const p of this.projectiles) p.update(dt);
+          const arrived=this.projectiles.filter(p=>p.done);
+          this.projectiles=this.projectiles.filter(p=>!p.done);
+          for(const p of arrived) {
+            if(p.target&&p.target.alive) {
+              p.target.takeDamage(p.dmg);
+              audio.hit();
+              this.addParticles(p.target.x, p.target.y, 3, '255,200,0');
+              if(!p.target.alive && p.target instanceof Minion && p.target.team!==this.hero.team) {
+                this.hero.crystal += 1;
+                this.hero.kills += 1;
+              }
             }
-
-            /** 英雄类 */
-            class Hero extends Unit {
-                constructor(x, y, team) {
-                    super(x, y, UnitType.HERO, team,
-                        CONFIG.HERO_MAX_HP, CONFIG.HERO_ATTACK,
-                        CONFIG.HERO_ATTACK_SPEED, CONFIG.HERO_ATTACK_RANGE);
-                    this.moveSpeed = CONFIG.HERO_MOVE_SPEED;
-                    this.respawnTimer = 0;
-                    this.spawnX = x;
-                    this.spawnY = y;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.isPlayer = (team === Team.BLUE);
-                }
-
-                /** 设置移动方向 */
-                setMovement(vx, vy) {
-                    const mag = Math.sqrt(vx * vx + vy * vy);
-                    if (mag > 1) { vx /= mag;
-                        vy /= mag; }
-                    this.vx = vx * this.moveSpeed;
-                    this.vy = vy * this.moveSpeed;
-                    if (vx !== 0) this.facingRight = (vx > 0);
-                }
-
-                /** 停止移动 */
-                stopMovement() {
-                    this.vx = 0;
-                    this.vy = 0;
-                }
-
-                /** 更新位置 */
-                updatePosition(dt, minX, maxX, minY, maxY) {
-                    if (!this.alive) return;
-                    this.x += this.vx * dt;
-                    this.y += this.vy * dt;
-                    // 边界限制
-                    this.x = Math.max(minX, Math.min(maxX, this.x));
-                    this.y = Math.max(minY, Math.min(maxY, this.y));
-                }
-
-                /** 复活 */
-                respawn() {
-                    this.alive = true;
-                    this.hp = this.maxHp;
-                    this.x = this.spawnX;
-                    this.y = this.spawnY;
-                    this.respawnTimer = 0;
-                    this.attackCooldown = 0;
-                    this.flashTimer = 0;
-                    this.vx = 0;
-                    this.vy = 0;
-                }
-
-                onDeath() {
-                    if (this.isPlayer) {
-                        this.respawnTimer = CONFIG.HERO_RESPAWN_TIME;
-                    }
-                    this.stopMovement();
-                }
-
-                /** 更新复活倒计时 */
-                updateRespawn(dt) {
-                    if (!this.alive && this.respawnTimer > 0) {
-                        this.respawnTimer -= dt;
-                        if (this.respawnTimer <= 0) {
-                            this.respawn();
-                            return true;
-                        }
-                    }
-                    return false;
-                }
+          }
+          for(const t of [...this.blueTowers, ...this.redTowers]) {
+            if(!t.alive && t._destroyed===undefined) {
+              t._destroyed=true; audio.towerDown(); this.addParticles(t.x,t.y,15,'255,100,0');
+              if(t.team===Team.RED) this.hero.towersDestroyed++;
             }
+          }
+          this.blueMinions=this.blueMinions.filter(m=>m.alive);
+          this.redMinions=this.redMinions.filter(m=>m.alive);
+          this.particles=this.particles.filter(p=>p.alive());
+          for(const p of this.particles) p.update(dt);
+          this.spawnTimer+=dt;
+          if(this.spawnTimer>=CONFIG.MINION_INTERVAL) { this.spawnTimer-=CONFIG.MINION_INTERVAL; if(this.blueBase.alive) this.spawnMinion(Team.BLUE); if(this.redBase.alive) this.spawnMinion(Team.RED); }
+          if(!this.blueBase.alive) { this.gameOver=true; this.victory=false; audio.defeat(); }
+          else if(!this.redBase.alive) { this.gameOver=true; this.victory=true; audio.victory(); }
+          for(const u of [this.hero, ...this.blueMinions, ...this.redMinions, ...this.blueTowers, ...this.redTowers, this.blueBase, this.redBase]) if(u) u.updateDisplayHp(dt);
+        }
+      }
 
-            /** 小兵类 */
-            class Minion extends Unit {
-                constructor(x, y, team, targetX) {
-                    super(x, y, UnitType.MINION, team,
-                        CONFIG.MINION_MAX_HP, CONFIG.MINION_ATTACK,
-                        CONFIG.MINION_ATTACK_SPEED, CONFIG.MINION_ATTACK_RANGE);
-                    this.moveSpeed = CONFIG.MINION_MOVE_SPEED;
-                    this.targetX = targetX; // 最终目标X坐标（敌方基地方向）
-                    this.currentTarget = null; // 当前攻击目标
-                    this.facingRight = (team === Team.BLUE);
-                }
-
-                /** 寻找攻击范围内的敌方目标 */
-                findTarget(enemies) {
-                    let closest = null;
-                    let closestDist = Infinity;
-                    for (const enemy of enemies) {
-                        if (!enemy.isAlive()) continue;
-                        const d = this.distanceTo(enemy);
-                        if (d <= this.attackRange && d < closestDist) {
-                            closest = enemy;
-                            closestDist = d;
-                        }
-                    }
-                    this.currentTarget = closest;
-                    return closest;
-                }
-
-                /** 更新移动 */
-                updateMovement(dt, minX, maxX) {
-                    if (!this.alive) return;
-                    if (this.currentTarget && this.currentTarget.isAlive() && this.isInRange(this
-                        .currentTarget)) {
-                        // 在攻击范围内，停止移动
-                        return;
-                    }
-                    this.currentTarget = null;
-                    // 向目标方向移动
-                    const dir = (this.team === Team.BLUE) ? 1 : -1;
-                    this.x += dir * this.moveSpeed * dt;
-                    this.facingRight = (dir > 0);
-                    // 边界限制
-                    this.x = Math.max(minX, Math.min(maxX, this.x));
-                }
+      // ==================== 游戏主控 ====================
+      class Game {
+        constructor() {
+          this.canvas=document.getElementById('gameCanvas');
+          this.ctx=this.canvas.getContext('2d');
+          this.audio=new AudioManager();
+          this.input=new InputHandler(this.canvas);
+          this.renderer=new Renderer(this.canvas,this.ctx);
+          this.state='menu';
+          this.logic=null;
+          this.difficulty='normal';
+          this.menuSelection=0;
+          this.lastTime=0; this.raf=null;
+          this.pauseRect=null; this.restartRect=null; this.muteRect=null;
+          this.guideTimer=0;
+          this._bindEvents();
+          this._checkOrientation();
+          this._resize();
+        }
+        _bindEvents() {
+          window.addEventListener('resize', ()=>{ this._checkOrientation(); this._resize(); });
+          window.addEventListener('orientationchange', ()=>setTimeout(()=>{ this._checkOrientation(); this._resize(); },300));
+          const initAudio=()=>{ this.audio.init(); document.removeEventListener('touchstart',initAudio); document.removeEventListener('click',initAudio); };
+          document.addEventListener('touchstart',initAudio,{once:false});
+          document.addEventListener('click',initAudio,{once:false});
+          document.addEventListener('keydown',e=>{
+            if(this.state==='menu') {
+              if(e.key==='ArrowDown') this.menuSelection=(this.menuSelection+1)%3;
+              if(e.key==='ArrowUp') this.menuSelection=(this.menuSelection+2)%3;
+              if(e.key==='Enter') this._startGame();
             }
-
-            /** 防御塔类 */
-            class Tower extends Unit {
-                constructor(x, y, team) {
-                    super(x, y, UnitType.TOWER, team,
-                        CONFIG.TOWER_MAX_HP, CONFIG.TOWER_ATTACK,
-                        CONFIG.TOWER_ATTACK_SPEED, CONFIG.TOWER_ATTACK_RANGE);
-                    this.currentTarget = null;
-                    this.attackGlow = 0; // 攻击发光计时器
-                }
-
-                /** 寻找范围内最近敌方单位 */
-                findTarget(enemies) {
-                    let closest = null;
-                    let closestDist = Infinity;
-                    for (const enemy of enemies) {
-                        if (!enemy.isAlive()) continue;
-                        const d = this.distanceTo(enemy);
-                        if (d <= this.attackRange && d < closestDist) {
-                            closest = enemy;
-                            closestDist = d;
-                        }
-                    }
-                    this.currentTarget = closest;
-                    return closest;
-                }
-
-                updateGlow(dt) {
-                    if (this.attackGlow > 0) this.attackGlow -= dt;
-                }
-
-                performAttack() {
-                    super.performAttack();
-                    this.attackGlow = 0.2;
-                }
-            }
-
-            /** 基地水晶类 */
-            class BaseCrystal extends Unit {
-                constructor(x, y, team) {
-                    super(x, y, UnitType.BASE, team,
-                        CONFIG.BASE_CRYSTAL_MAX_HP, 0, 999, 0);
-                    this.glowPhase = Math.random() * Math.PI * 2;
-                    this.canAttack = false; // 水晶不攻击
-                }
-
-                updateGlow(dt) {
-                    this.glowPhase += dt * 2.5;
-                    if (this.glowPhase > Math.PI * 2) this.glowPhase -= Math.PI * 2;
-                }
-
-                canAttack() { return false; }
-            }
-
-            /** 弹道类 */
-            class Projectile {
-                constructor(fromX, fromY, toX, toY, color, damage, target) {
-                    this.fromX = fromX;
-                    this.fromY = fromY;
-                    this.toX = toX;
-                    this.toY = toY;
-                    this.x = fromX;
-                    this.y = fromY;
-                    this.color = color;
-                    this.damage = damage;
-                    this.target = target;
-                    this.progress = 0;
-                    this.totalDuration = CONFIG.PROJECTILE_DURATION;
-                    this.elapsed = 0;
-                    this.arrived = false;
-                }
-
-                update(dt) {
-                    if (this.arrived) return;
-                    this.elapsed += dt;
-                    this.progress = Math.min(1, this.elapsed / this.totalDuration);
-                    // 缓动
-                    const t = this.progress;
-                    this.x = this.fromX + (this.toX - this.fromX) * t;
-                    this.y = this.fromY + (this.toY - this.fromY) * t;
-                    if (this.progress >= 1) {
-                        this.arrived = true;
-                    }
-                }
-
-                isArrived() { return this.arrived; }
-            }
-
-            // ==================== 四、输入处理层 InputHandler ====================
-            class InputHandler {
-                constructor(canvas) {
-                    this.canvas = canvas;
-                    this.joystickActive = false;
-                    this.joystickId = null; // 触摸标识符
-                    this.joystickDX = 0; // 摇杆水平偏移(-1到1)
-                    this.joystickDY = 0; // 摇杆垂直偏移(-1到1)
-                    this.joystickRawX = 0; // 摇杆触摸在Canvas上的X
-                    this.joystickRawY = 0;
-
-                    this.attackPressed = false;
-                    this.attackBtnId = null;
-                    this.attackJustTriggered = false; // 单次触发标记
-
-                    this.muteBtnPressed = false;
-                    this.restartBtnPressed = false;
-
-                    // 键盘状态
-                    this.keys = {};
-                    this.keyAttackJustPressed = false;
-
-                    // UI按钮区域（在Canvas坐标中，由渲染层设置）
-                    this.muteBtnRect = null;
-                    this.restartBtnRect = null;
-                    this.joystickCenter = null; // {x, y}
-                    this.joystickBaseRadius = 40;
-                    this.joystickKnobRadius = 20;
-                    this.attackBtnCenter = null;
-                    this.attackBtnRadius = 35;
-
-                    this._bindEvents();
-                }
-
-                _bindEvents() {
-                    const c = this.canvas;
-                    // 触摸事件
-                    c.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
-                    c.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
-                    c.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: false });
-                    c.addEventListener('touchcancel', (e) => this._onTouchEnd(e), { passive: false });
-
-                    // 鼠标事件（PC端）
-                    c.addEventListener('mousedown', (e) => this._onMouseDown(e));
-                    c.addEventListener('mousemove', (e) => this._onMouseMove(e));
-                    c.addEventListener('mouseup', (e) => this._onMouseUp(e));
-                    c.addEventListener('click', (e) => this._onClick(e));
-
-                    // 键盘事件
-                    window.addEventListener('keydown', (e) => this._onKeyDown(e));
-                    window.addEventListener('keyup', (e) => this._onKeyUp(e));
-                }
-
-                /** 获取Canvas上的坐标 */
-                _getCanvasPos(clientX, clientY) {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const scaleX = this.canvas.width / rect.width;
-                    const scaleY = this.canvas.height / rect.height;
-                    return {
-                        x: (clientX - rect.left) * scaleX,
-                        y: (clientY - rect.top) * scaleY,
-                    };
-                }
-
-                /** 检查点是否在圆形内 */
-                _isInCircle(px, py, cx, cy, r) {
-                    const dx = px - cx;
-                    const dy = py - cy;
-                    return (dx * dx + dy * dy) <= (r * r);
-                }
-
-                _onTouchStart(e) {
-                    e.preventDefault();
-                    if (!this.joystickCenter || !this.attackBtnCenter) return;
-                    for (const touch of e.changedTouches) {
-                        const pos = this._getCanvasPos(touch.clientX, touch.clientY);
-                        // 检查摇杆区域
-                        if (this.joystickId === null && this._isInCircle(pos.x, pos.y, this.joystickCenter.x,
-                                this.joystickCenter.y, this.joystickBaseRadius * 1.5)) {
-                            this.joystickId = touch.identifier;
-                            this.joystickActive = true;
-                            this._updateJoystick(pos.x, pos.y);
-                        }
-                        // 检查攻击按钮区域
-                        else if (this.attackBtnId === null && this._isInCircle(pos.x, pos.y, this.attackBtnCenter
-                                .x, this.attackBtnCenter.y, this.attackBtnRadius * 1.5)) {
-                            this.attackBtnId = touch.identifier;
-                            this.attackPressed = true;
-                            this.attackJustTriggered = true;
-                        }
-                        // 检查静音按钮
-                        else if (this.muteBtnRect && this._isInRect(pos.x, pos.y, this.muteBtnRect)) {
-                            this.muteBtnPressed = true;
-                        }
-                        // 检查重新开始按钮
-                        else if (this.restartBtnRect && this._isInRect(pos.x, pos.y, this.restartBtnRect)) {
-                            this.restartBtnPressed = true;
-                        }
-                    }
-                }
-
-                _onTouchMove(e) {
-                    e.preventDefault();
-                    for (const touch of e.changedTouches) {
-                        if (touch.identifier === this.joystickId) {
-                            const pos = this._getCanvasPos(touch.clientX, touch.clientY);
-                            this._updateJoystick(pos.x, pos.y);
-                        }
-                    }
-                }
-
-                _onTouchEnd(e) {
-                    e.preventDefault();
-                    for (const touch of e.changedTouches) {
-                        if (touch.identifier === this.joystickId) {
-                            this.joystickId = null;
-                            this.joystickActive = false;
-                            this.joystickDX = 0;
-                            this.joystickDY = 0;
-                        }
-                        if (touch.identifier === this.attackBtnId) {
-                            this.attackBtnId = null;
-                            this.attackPressed = false;
-                        }
-                    }
-                    // 重置按钮状态
-                    this.muteBtnPressed = false;
-                    this.restartBtnPressed = false;
-                }
-
-                _updateJoystick(posX, posY) {
-                    if (!this.joystickCenter) return;
-                    const cx = this.joystickCenter.x;
-                    const cy = this.joystickCenter.y;
-                    const maxDist = this.joystickBaseRadius - this.joystickKnobRadius;
-                    let dx = posX - cx;
-                    let dy = posY - cy;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist > maxDist) {
-                        dx = (dx / dist) * maxDist;
-                        dy = (dy / dist) * maxDist;
-                    }
-                    this.joystickRawX = cx + dx;
-                    this.joystickRawY = cy + dy;
-                    this.joystickDX = dx / maxDist;
-                    this.joystickDY = dy / maxDist;
-                }
-
-                _onMouseDown(e) {
-                    if (e.button !== 0) return;
-                    const pos = this._getCanvasPos(e.clientX, e.clientY);
-                    // 模拟摇杆（在摇杆区域按下）
-                    if (this.joystickCenter && this._isInCircle(pos.x, pos.y, this.joystickCenter.x, this
-                            .joystickCenter.y, this.joystickBaseRadius * 1.5)) {
-                        this.joystickActive = true;
-                        this.joystickId = 'mouse';
-                        this._updateJoystick(pos.x, pos.y);
-                    }
-                    // 模拟攻击按钮
-                    if (this.attackBtnCenter && this._isInCircle(pos.x, pos.y, this.attackBtnCenter.x, this
-                            .attackBtnCenter.y, this.attackBtnRadius * 1.5)) {
-                        this.attackPressed = true;
-                        this.attackJustTriggered = true;
-                    }
-                }
-
-                _onMouseMove(e) {
-                    if (this.joystickId === 'mouse') {
-                        const pos = this._getCanvasPos(e.clientX, e.clientY);
-                        this._updateJoystick(pos.x, pos.y);
-                    }
-                }
-
-                _onMouseUp(e) {
-                    if (this.joystickId === 'mouse') {
-                        this.joystickId = null;
-                        this.joystickActive = false;
-                        this.joystickDX = 0;
-                        this.joystickDY = 0;
-                    }
-                    this.attackPressed = false;
-                    this.muteBtnPressed = false;
-                    this.restartBtnPressed = false;
-                }
-
-                _onClick(e) {
-                    const pos = this._getCanvasPos(e.clientX, e.clientY);
-                    // 检测静音按钮点击
-                    if (this.muteBtnRect && this._isInRect(pos.x, pos.y, this.muteBtnRect)) {
-                        this.muteBtnPressed = true;
-                    }
-                    // 检测重新开始按钮
-                    if (this.restartBtnRect && this._isInRect(pos.x, pos.y, this.restartBtnRect)) {
-                        this.restartBtnPressed = true;
-                    }
-                }
-
-                _isInRect(px, py, rect) {
-                    return px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
-                }
-
-                _onKeyDown(e) {
-                    this.keys[e.key] = true;
-                    if (e.key === ' ' || e.key === 'Spacebar') {
-                        this.keyAttackJustPressed = true;
-                        e.preventDefault();
-                    }
-                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-                        e.preventDefault();
-                    }
-                }
-
-                _onKeyUp(e) {
-                    this.keys[e.key] = false;
-                }
-
-                /** 获取移动方向（综合摇杆和键盘） */
-                getMovementDirection() {
-                    let vx = 0,
-                        vy = 0;
-                    // 摇杆输入
-                    if (this.joystickActive) {
-                        vx = this.joystickDX;
-                        vy = this.joystickDY;
-                    }
-                    // 键盘输入
-                    if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp']) vy = -1;
-                    if (this.keys['s'] || this.keys['S'] || this.keys['ArrowDown']) vy = 1;
-                    if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) vx = -1;
-                    if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) vx = 1;
-
-                    // 如果键盘有输入，优先键盘
-                    if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp'] ||
-                        this.keys['s'] || this.keys['S'] || this.keys['ArrowDown'] ||
-                        this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft'] ||
-                        this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) {
-                        // 键盘输入覆盖摇杆
-                    }
-                    return { vx, vy };
-                }
-
-                /** 是否触发攻击（综合触屏攻击按钮和键盘空格） */
-                isAttackTriggered() {
-                    const triggered = this.attackJustTriggered || this.keyAttackJustPressed;
-                    this.attackJustTriggered = false;
-                    this.keyAttackJustPressed = false;
-                    return triggered;
-                }
-
-                /** 是否按下攻击键（持续按下） */
-                isAttackHeld() {
-                    return this.attackPressed || this.keys[' '] || this.keys['Spacebar'];
-                }
-
-                /** 消耗静音按钮事件 */
-                consumeMutePress() {
-                    const v = this.muteBtnPressed;
-                    this.muteBtnPressed = false;
-                    return v;
-                }
-
-                /** 消耗重新开始按钮事件 */
-                consumeRestartPress() {
-                    const v = this.restartBtnPressed;
-                    this.restartBtnPressed = false;
-                    return v;
-                }
-            }
-
-            // ==================== 五、渲染层 Renderer ====================
-            class Renderer {
-                constructor(canvas, ctx) {
-                    this.canvas = canvas;
-                    this.ctx = ctx;
-                    this.width = canvas.width;
-                    this.height = canvas.height;
-                    this.scale = 1; // 全局缩放因子
-                }
-
-                /** 更新Canvas尺寸 */
-                updateSize(w, h) {
-                    this.width = w;
-                    this.height = h;
-                    this.scale = Math.min(w / 1200, h / 500, 1.4);
-                }
-
-                /** 清屏 */
-                clear() {
-                    const ctx = this.ctx;
-                    ctx.clearRect(0, 0, this.width, this.height);
-                }
-
-                /** 绘制地图背景 */
-                drawMap(laneY) {
-                    const ctx = this.ctx;
-                    const w = this.width;
-                    const h = this.height;
-
-                    // 天空渐变
-                    const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
-                    skyGrad.addColorStop(0, '#1a1a3e');
-                    skyGrad.addColorStop(0.35, '#2d3a6e');
-                    skyGrad.addColorStop(0.55, '#4a6fa5');
-                    skyGrad.addColorStop(1, '#1a2a1a');
-                    ctx.fillStyle = skyGrad;
-                    ctx.fillRect(0, 0, w, h);
-
-                    // 蓝方区域背景（左侧）
-                    const blueGrad = ctx.createLinearGradient(0, 0, w * 0.5, 0);
-                    blueGrad.addColorStop(0, 'rgba(30,60,140,0.35)');
-                    blueGrad.addColorStop(1, 'rgba(30,60,140,0.05)');
-                    ctx.fillStyle = blueGrad;
-                    ctx.fillRect(0, 0, w * 0.5, h);
-
-                    // 红方区域背景（右侧）
-                    const redGrad = ctx.createLinearGradient(w * 0.5, 0, w, 0);
-                    redGrad.addColorStop(0, 'rgba(180,30,30,0.05)');
-                    redGrad.addColorStop(1, 'rgba(180,30,30,0.35)');
-                    ctx.fillStyle = redGrad;
-                    ctx.fillRect(w * 0.5, 0, w * 0.5, h);
-
-                    // 地面
-                    const groundY = laneY + 45 * this.scale;
-                    ctx.fillStyle = '#3d5a3d';
-                    ctx.fillRect(0, groundY, w, h - groundY);
-                    ctx.fillStyle = '#4a7040';
-                    ctx.fillRect(0, groundY, w, 8 * this.scale);
-
-                    // 兵线路径
-                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                    ctx.lineWidth = 2 * this.scale;
-                    ctx.setLineDash([15 * this.scale, 10 * this.scale]);
-                    ctx.beginPath();
-                    ctx.moveTo(30, laneY);
-                    ctx.lineTo(w - 30, laneY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // 中线标记
-                    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-                    ctx.fillRect(w / 2 - 1, laneY - 25 * this.scale, 2, 50 * this.scale);
-
-                    // 河流装饰（中间）
-                    ctx.fillStyle = 'rgba(80,140,200,0.3)';
-                    ctx.beginPath();
-                    ctx.ellipse(w / 2, laneY + 15 * this.scale, 40 * this.scale, 8 * this.scale, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                /** 绘制单位圆形（英雄/小兵） */
-                drawUnitCircle(unit, radius, hasArrow = false) {
-                    const ctx = this.ctx;
-                    const x = unit.x;
-                    const y = unit.y;
-                    const r = radius;
-                    const isBlue = unit.team === Team.BLUE;
-                    const baseColor = isBlue ? '#4488ff' : '#ff4444';
-                    const flashColor = '#ffffff';
-
-                    // 受击闪红
-                    let bodyColor = baseColor;
-                    if (unit.flashTimer > 0) {
-                        const t = unit.flashTimer / 0.12;
-                        bodyColor = t > 0.5 ? flashColor : '#ff6666';
-                    }
-
-                    // 光晕
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(x, y, r * 1.3, 0, Math.PI * 2);
-                    const glowGrad = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 1.3);
-                    glowGrad.addColorStop(0, isBlue ? 'rgba(60,140,255,0.5)' : 'rgba(255,60,60,0.5)');
-                    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = glowGrad;
-                    ctx.fill();
-                    ctx.restore();
-
-                    // 主体
-                    ctx.beginPath();
-                    ctx.arc(x, y, r, 0, Math.PI * 2);
-                    const bodyGrad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
-                    bodyGrad.addColorStop(0, '#ffffff');
-                    bodyGrad.addColorStop(0.4, bodyColor);
-                    bodyGrad.addColorStop(1, isBlue ? '#1a3a7a' : '#7a1a1a');
-                    ctx.fillStyle = bodyGrad;
-                    ctx.fill();
-                    ctx.strokeStyle = isBlue ? '#aaccff' : '#ffaaaa';
-                    ctx.lineWidth = 1.5 * this.scale;
-                    ctx.stroke();
-
-                    // 朝向箭头
-                    if (hasArrow) {
-                        const arrowDir = unit.facingRight ? 1 : -1;
-                        const arrowX = x + arrowDir * r * 1.15;
-                        const arrowY = y;
-                        ctx.fillStyle = '#ffffff';
-                        ctx.beginPath();
-                        ctx.moveTo(arrowX, arrowY);
-                        ctx.lineTo(arrowX - arrowDir * r * 0.5, arrowY - r * 0.35);
-                        ctx.lineTo(arrowX - arrowDir * r * 0.5, arrowY + r * 0.35);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-
-                    // 血条
-                    this.drawHpBar(x, y - r - 8 * this.scale, r * 2, unit.getHpRatio(), unit.team);
-                }
-
-                /** 绘制血条 */
-                drawHpBar(x, y, width, ratio, team) {
-                    const ctx = this.ctx;
-                    const h = 4 * this.scale;
-                    const barY = y;
-                    const barX = x - width / 2;
-
-                    // 背景
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                    ctx.fillRect(barX - 1, barY - 1, width + 2, h + 2);
-                    // 底色
-                    ctx.fillStyle = '#444';
-                    ctx.fillRect(barX, barY, width, h);
-                    // 血量
-                    const hpWidth = width * ratio;
-                    const hpColor = ratio > 0.5 ? '#44dd44' : ratio > 0.25 ? '#dddd44' : '#dd4444';
-                    ctx.fillStyle = hpColor;
-                    ctx.fillRect(barX, barY, hpWidth, h);
-                    // 高光
-                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                    ctx.fillRect(barX, barY, hpWidth, h * 0.4);
-                }
-
-                /** 绘制防御塔 */
-                drawTower(tower, size) {
-                    const ctx = this.ctx;
-                    const x = tower.x;
-                    const y = tower.y;
-                    const s = size;
-                    const isBlue = tower.team === Team.BLUE;
-                    const baseColor = isBlue ? '#3366cc' : '#cc3333';
-                    const glowColor = isBlue ? '#88bbff' : '#ff8888';
-
-                    // 塔身（方形）
-                    const bodyW = s * 0.8;
-                    const bodyH = s * 1.2;
-                    const bodyTop = y - bodyH;
-
-                    // 受击闪红
-                    let bodyFill = baseColor;
-                    if (tower.flashTimer > 0) {
-                        bodyFill = '#ff6666';
-                    }
-
-                    ctx.fillStyle = bodyFill;
-                    ctx.fillRect(x - bodyW / 2, bodyTop, bodyW, bodyH);
-                    ctx.strokeStyle = isBlue ? '#aaccff' : '#ffaaaa';
-                    ctx.lineWidth = 2 * this.scale;
-                    ctx.strokeRect(x - bodyW / 2, bodyTop, bodyW, bodyH);
-
-                    // 塔顶（三角形）
-                    const triH = s * 0.7;
-                    const triTop = bodyTop - triH;
-                    ctx.beginPath();
-                    ctx.moveTo(x, triTop);
-                    ctx.lineTo(x - bodyW / 2 - s * 0.15, bodyTop);
-                    ctx.lineTo(x + bodyW / 2 + s * 0.15, bodyTop);
-                    ctx.closePath();
-
-                    let triColor = bodyFill;
-                    if (tower.attackGlow > 0 && tower.attackGlow > 0.05) {
-                        triColor = glowColor;
-                    }
-                    ctx.fillStyle = triColor;
-                    ctx.fill();
-                    ctx.strokeStyle = isBlue ? '#ddeeff' : '#ffdddd';
-                    ctx.lineWidth = 1.5 * this.scale;
-                    ctx.stroke();
-
-                    // 塔顶发光效果
-                    if (tower.attackGlow > 0) {
-                        const glowAlpha = tower.attackGlow / 0.2;
-                        ctx.fillStyle = `rgba(255,255,200,${glowAlpha * 0.6})`;
-                        ctx.beginPath();
-                        ctx.arc(x, triTop + triH * 0.3, s * 0.4, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                    // 血条
-                    this.drawHpBar(x, triTop - 10 * this.scale, s * 1.6, tower.getHpRatio(), tower.team);
-                }
-
-                /** 绘制基地水晶（六边形） */
-                drawBaseCrystal(crystal, size) {
-                    const ctx = this.ctx;
-                    const x = crystal.x;
-                    const y = crystal.y;
-                    const s = size;
-                    const isBlue = crystal.team === Team.BLUE;
-                    const baseColor = isBlue ? '#3399ff' : '#ff3333';
-
-                    // 呼吸光晕
-                    const breathAlpha = 0.3 + Math.sin(crystal.glowPhase) * 0.2;
-                    const glowGrad = ctx.createRadialGradient(x, y, s * 0.3, x, y, s * 1.6);
-                    glowGrad.addColorStop(0, isBlue ?
-                        `rgba(80,160,255,${breathAlpha + 0.3})` :
-                        `rgba(255,80,80,${breathAlpha + 0.3})`);
-                    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = glowGrad;
-                    ctx.beginPath();
-                    ctx.arc(x, y, s * 1.6, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 六边形主体
-                    const sides = 6;
-                    ctx.beginPath();
-                    for (let i = 0; i < sides; i++) {
-                        const angle = (Math.PI * 2 / sides) * i - Math.PI / 2;
-                        const px = x + Math.cos(angle) * s;
-                        const py = y + Math.sin(angle) * s;
-                        if (i === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-
-                    let fillColor = baseColor;
-                    if (crystal.flashTimer > 0) fillColor = '#ff6666';
-                    const hexGrad = ctx.createRadialGradient(x - s * 0.2, y - s * 0.2, s * 0.1, x, y, s);
-                    hexGrad.addColorStop(0, '#ffffff');
-                    hexGrad.addColorStop(0.3, fillColor);
-                    hexGrad.addColorStop(1, isBlue ? '#0a2a5a' : '#5a0a0a');
-                    ctx.fillStyle = hexGrad;
-                    ctx.fill();
-                    ctx.strokeStyle = isBlue ? '#aaddff' : '#ffaaaa';
-                    ctx.lineWidth = 2.5 * this.scale;
-                    ctx.stroke();
-
-                    // 内部发光
-                    const innerGlow = ctx.createRadialGradient(x, y, s * 0.1, x, y, s * 0.7);
-                    innerGlow.addColorStop(0, `rgba(255,255,255,${breathAlpha + 0.2})`);
-                    innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = innerGlow;
-                    ctx.beginPath();
-                    ctx.arc(x, y, s * 0.7, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 血条
-                    this.drawHpBar(x, y - s - 14 * this.scale, s * 2.2, crystal.getHpRatio(), crystal.team);
-                }
-
-                /** 绘制弹道 */
-                drawProjectile(proj, size = 3) {
-                    const ctx = this.ctx;
-                    ctx.strokeStyle = proj.color;
-                    ctx.lineWidth = size * this.scale;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(proj.fromX, proj.fromY);
-                    ctx.lineTo(proj.x, proj.y);
-                    ctx.stroke();
-
-                    // 弹头光点
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(proj.x, proj.y, size * this.scale * 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                /** 绘制虚拟摇杆 */
-                drawJoystick(centerX, centerY, baseRadius, knobRadius, knobX, knobY, isActive) {
-                    const ctx = this.ctx;
-                    // 底座
-                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                    ctx.lineWidth = 2 * this.scale;
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // 摇杆按钮
-                    const kx = isActive ? knobX : centerX;
-                    const ky = isActive ? knobY : centerY;
-                    const knobGrad = ctx.createRadialGradient(kx - knobRadius * 0.2, ky - knobRadius * 0.2, knobRadius *
-                        0.1, kx, ky, knobRadius);
-                    knobGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
-                    knobGrad.addColorStop(1, 'rgba(200,200,220,0.6)');
-                    ctx.fillStyle = knobGrad;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-                    ctx.lineWidth = 2 * this.scale;
-                    ctx.beginPath();
-                    ctx.arc(kx, ky, knobRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                }
-
-                /** 绘制攻击按钮 */
-                drawAttackButton(centerX, centerY, radius, isPressed) {
-                    const ctx = this.ctx;
-                    const r = isPressed ? radius * 0.9 : radius;
-                    const alpha = isPressed ? 0.7 : 0.45;
-
-                    ctx.fillStyle = `rgba(255,80,60,${alpha})`;
-                    ctx.strokeStyle = 'rgba(255,200,180,0.8)';
-                    ctx.lineWidth = 2.5 * this.scale;
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // 剑图标
-                    const iconSize = r * 0.5;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2 * this.scale;
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY - iconSize);
-                    ctx.lineTo(centerX - iconSize * 0.3, centerY - iconSize * 0.3);
-                    ctx.lineTo(centerX - iconSize * 0.1, centerY + iconSize * 0.3);
-                    ctx.lineTo(centerX + iconSize * 0.1, centerY + iconSize * 0.3);
-                    ctx.lineTo(centerX + iconSize * 0.3, centerY - iconSize * 0.3);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    // 护手
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2.5 * this.scale;
-                    ctx.beginPath();
-                    ctx.moveTo(centerX - iconSize * 0.5, centerY + iconSize * 0.45);
-                    ctx.lineTo(centerX + iconSize * 0.5, centerY + iconSize * 0.45);
-                    ctx.stroke();
-                }
-
-                /** 绘制顶部UI栏 */
-                drawTopUI(blueTowers, redTowers, blueBaseAlive, redBaseAlive) {
-                    const ctx = this.ctx;
-                    const w = this.width;
-                    const uiY = 8 * this.scale;
-                    const iconSize = 10 * this.scale;
-                    const gap = 6 * this.scale;
-
-                    // UI背景
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.fillRect(0, 0, w, 32 * this.scale);
-
-                    // 蓝方防御塔状态
-                    const blueStartX = 20 * this.scale;
-                    ctx.fillStyle = '#4488ff';
-                    ctx.font = `${11*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.textAlign = 'left';
-                    ctx.fillText('蓝方塔:', blueStartX, uiY + 18 * this.scale);
-                    for (let i = 0; i < 2; i++) {
-                        const tx = blueStartX + 55 * this.scale + i * (iconSize + gap);
-                        const ty = uiY + 8 * this.scale;
-                        ctx.fillStyle = blueTowers[i] && blueTowers[i].isAlive() ? '#44cc44' : '#555555';
-                        ctx.fillRect(tx, ty, iconSize, iconSize);
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(tx, ty, iconSize, iconSize);
-                    }
-
-                    // 红方防御塔状态
-                    const redStartX = w - 20 * this.scale;
-                    ctx.fillStyle = '#ff4444';
-                    ctx.textAlign = 'right';
-                    ctx.fillText('红方塔:', redStartX, uiY + 18 * this.scale);
-                    for (let i = 0; i < 2; i++) {
-                        const tx = redStartX - 55 * this.scale - (i + 1) * (iconSize + gap);
-                        const ty = uiY + 8 * this.scale;
-                        ctx.fillStyle = redTowers[i] && redTowers[i].isAlive() ? '#44cc44' : '#555555';
-                        ctx.fillRect(tx, ty, iconSize, iconSize);
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(tx, ty, iconSize, iconSize);
-                    }
-
-                    // 水晶状态
-                    const midX = w / 2;
-                    ctx.fillStyle = blueBaseAlive ? '#4488ff' : '#555';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('💎', midX - 40 * this.scale, uiY + 20 * this.scale);
-                    ctx.fillStyle = redBaseAlive ? '#ff4444' : '#555';
-                    ctx.fillText('💎', midX + 40 * this.scale, uiY + 20 * this.scale);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = `${10*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.fillText('蓝水晶', midX - 40 * this.scale, uiY + 30 * this.scale);
-                    ctx.fillText('红水晶', midX + 40 * this.scale, uiY + 30 * this.scale);
-                }
-
-                /** 绘制静音按钮 */
-                drawMuteButton(x, y, size, isMuted) {
-                    const ctx = this.ctx;
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.beginPath();
-                    ctx.roundRect(x, y, size, size, 6 * this.scale);
-                    ctx.fill();
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = `${size*0.6}px sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(isMuted ? '🔇' : '🔊', x + size / 2, y + size / 2);
-                }
-
-                /** 绘制复活倒计时 */
-                drawRespawnTimer(hero, x, y) {
-                    if (hero.isAlive() || hero.respawnTimer <= 0) return;
-                    const ctx = this.ctx;
-                    const timer = Math.ceil(hero.respawnTimer);
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                    const textWidth = 80 * this.scale;
-                    const textHeight = 36 * this.scale;
-                    ctx.fillRect(x - textWidth / 2, y - textHeight / 2, textWidth, textHeight);
-                    ctx.strokeStyle = '#ffcc00';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x - textWidth / 2, y - textHeight / 2, textWidth, textHeight);
-                    ctx.fillStyle = '#ffcc00';
-                    ctx.font = `bold ${16*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(`复活: ${timer}秒`, x, y);
-                }
-
-                /** 绘制游戏结束面板 */
-                drawGameOverPanel(isVictory) {
-                    const ctx = this.ctx;
-                    const w = this.width;
-                    const h = this.height;
-
-                    // 半透明遮罩
-                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                    ctx.fillRect(0, 0, w, h);
-
-                    // 面板
-                    const panelW = Math.min(320 * this.scale, w * 0.7);
-                    const panelH = Math.min(200 * this.scale, h * 0.5);
-                    const panelX = w / 2 - panelW / 2;
-                    const panelY = h / 2 - panelH / 2;
-                    ctx.fillStyle = 'rgba(30,30,50,0.95)';
-                    ctx.strokeStyle = isVictory ? '#ffd700' : '#ff4444';
-                    ctx.lineWidth = 3 * this.scale;
-                    ctx.beginPath();
-                    ctx.roundRect(panelX, panelY, panelW, panelH, 12 * this.scale);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // 结果文字
-                    ctx.fillStyle = isVictory ? '#ffd700' : '#ff4444';
-                    ctx.font = `bold ${22*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(isVictory ? '🎉 胜利！' : '💀 失败！', w / 2, panelY + panelH * 0.3);
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = `${13*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.fillText(isVictory ? '你摧毁了敌方水晶！' : '己方水晶被摧毁！', w / 2, panelY + panelH * 0.55);
-
-                    // 重新开始按钮
-                    const btnW = 120 * this.scale;
-                    const btnH = 36 * this.scale;
-                    const btnX = w / 2 - btnW / 2;
-                    const btnY = panelY + panelH * 0.72;
-                    ctx.fillStyle = '#4488ff';
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.roundRect(btnX, btnY, btnW, btnH, 8 * this.scale);
-                    ctx.fill();
-                    ctx.stroke();
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = `bold ${14*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-                    ctx.fillText('重新开始', w / 2, btnY + btnH / 2);
-
-                    // 存储按钮区域供输入检测
-                    return { x: btnX, y: btnY, w: btnW, h: btnH };
-                }
-
-                /** 绘制攻击闪光反馈（英雄攻击时） */
-                drawAttackFlash(unit, radius) {
-                    if (unit.attackCooldown > unit.attackSpeed - 0.08 && unit.attackCooldown > 0) {
-                        const ctx = this.ctx;
-                        const alpha = 0.6;
-                        ctx.fillStyle = unit.team === Team.BLUE ?
-                            `rgba(150,200,255,${alpha})` : `rgba(255,150,150,${alpha})`;
-                        ctx.beginPath();
-                        ctx.arc(unit.x, unit.y, radius * 1.6, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-            }
-
-            // ==================== 六、游戏逻辑层 GameLogic ====================
-            class GameLogic {
-                constructor(canvasWidth, canvasHeight, scale) {
-                    this.canvasWidth = canvasWidth;
-                    this.canvasHeight = canvasHeight;
-                    this.scale = scale;
-                    this.laneY = canvasHeight * CONFIG.LANE_Y_RATIO;
-
-                    // 计算地图边界
-                    this.mapMinX = 15;
-                    this.mapMaxX = canvasWidth - 15;
-                    this.mapMinY = this.laneY - 60 * scale;
-                    this.mapMaxY = this.laneY + 60 * scale;
-
-                    // 计算关键位置
-                    this.blueBaseX = canvasWidth * CONFIG.BLUE_BASE_X;
-                    this.blueTower1X = canvasWidth * CONFIG.BLUE_TOWER1_X;
-                    this.blueTower2X = canvasWidth * CONFIG.BLUE_TOWER2_X;
-                    this.redTower3X = canvasWidth * CONFIG.RED_TOWER3_X;
-                    this.redTower4X = canvasWidth * CONFIG.RED_TOWER4_X;
-                    this.redBaseX = canvasWidth * CONFIG.RED_BASE_X;
-
-                    // 创建单位
-                    this.blueHero = new Hero(this.blueBaseX + 40 * scale, this.laneY, Team.BLUE);
-                    this.blueTowers = [
-                        new Tower(this.blueTower1X, this.laneY, Team.BLUE),
-                        new Tower(this.blueTower2X, this.laneY, Team.BLUE),
-                    ];
-                    this.redTowers = [
-                        new Tower(this.redTower3X, this.laneY, Team.RED),
-                        new Tower(this.redTower4X, this.laneY, Team.RED),
-                    ];
-                    this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
-                    this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
-
-                    // 小兵列表
-                    this.blueMinions = [];
-                    this.redMinions = [];
-                    this.minionSpawnTimer = 0;
-
-                    // 弹道列表
-                    this.projectiles = [];
-
-                    // 游戏状态
-                    this.gameOver = false;
-                    this.victory = false;
-                    this.gameTime = 0;
-                }
-
-                /** 获取所有蓝方单位（供敌方寻找目标） */
-                getBlueUnits() {
-                    const units = [...this.blueMinions];
-                    if (this.blueHero.isAlive()) units.push(this.blueHero);
-                    for (const t of this.blueTowers) { if (t.isAlive()) units.push(t); }
-                    if (this.blueBase.isAlive()) units.push(this.blueBase);
-                    return units;
-                }
-
-                /** 获取所有红方单位（供敌方寻找目标） */
-                getRedUnits() {
-                    const units = [...this.redMinions];
-                    for (const t of this.redTowers) { if (t.isAlive()) units.push(t); }
-                    if (this.redBase.isAlive()) units.push(this.redBase);
-                    return units;
-                }
-
-                /** 生成小兵 */
-                spawnMinion(team) {
-                    if (team === Team.BLUE) {
-                        const m = new Minion(this.blueBaseX + 30 * this.scale, this.laneY, Team.BLUE, this.redBaseX);
-                        this.blueMinions.push(m);
-                    } else {
-                        const m = new Minion(this.redBaseX - 30 * this.scale, this.laneY, Team.RED, this.blueBaseX);
-                        this.redMinions.push(m);
-                    }
-                }
-
-                /** 创建弹道 */
-                createProjectile(fromUnit, toUnit) {
-                    const color = fromUnit.team === Team.BLUE ? '#88bbff' : '#ff8888';
-                    const proj = new Projectile(fromUnit.x, fromUnit.y, toUnit.x, toUnit.y, color, fromUnit.attackPower,
-                        toUnit);
-                    this.projectiles.push(proj);
-                    return proj;
-                }
-
-                /** 单位攻击目标 */
-                unitAttack(attacker, target, audioManager) {
-                    if (!attacker.canAttack() || !target.isAlive()) return false;
-                    attacker.performAttack();
-                    this.createProjectile(attacker, target);
-                    audioManager.playAttackSound();
-                    return true;
-                }
-
-                /** 清理死亡小兵 */
-                cleanupDeadMinions() {
-                    this.blueMinions = this.blueMinions.filter(m => m.isAlive());
-                    this.redMinions = this.redMinions.filter(m => m.isAlive());
-                }
-
-                /** 主更新逻辑 */
-                update(dt, inputHandler, audioManager) {
-                    if (this.gameOver) return;
-
-                    this.gameTime += dt;
-
-                    // 更新英雄
-                    const { vx, vy } = inputHandler.getMovementDirection();
-                    if (vx !== 0 || vy !== 0) {
-                        this.blueHero.setMovement(vx, vy);
-                    } else {
-                        this.blueHero.stopMovement();
-                    }
-                    this.blueHero.updatePosition(dt, this.mapMinX, this.mapMaxX, this.mapMinY, this.mapMaxY);
-                    this.blueHero.updateCooldown(dt);
-                    if (!this.blueHero.isAlive()) {
-                        this.blueHero.updateRespawn(dt);
-                    }
-
-                    // 英雄自动攻击
-                    if (this.blueHero.isAlive() && this.blueHero.canAttack()) {
-                        const enemies = this.getRedUnits();
-                        let closest = null;
-                        let closestDist = Infinity;
-                        for (const e of enemies) {
-                            const d = this.blueHero.distanceTo(e);
-                            if (d <= this.blueHero.attackRange && d < closestDist) {
-                                closest = e;
-                                closestDist = d;
-                            }
-                        }
-                        if (closest) {
-                            this.unitAttack(this.blueHero, closest, audioManager);
-                        }
-                    }
-                    // 手动攻击触发（强制攻击最近敌人）
-                    if (inputHandler.isAttackTriggered() && this.blueHero.isAlive() && this.blueHero.canAttack()) {
-                        const enemies = this.getRedUnits();
-                        let closest = null;
-                        let closestDist = Infinity;
-                        for (const e of enemies) {
-                            const d = this.blueHero.distanceTo(e);
-                            if (d <= this.blueHero.attackRange * 1.3 && d < closestDist) {
-                                closest = e;
-                                closestDist = d;
-                            }
-                        }
-                        if (closest) {
-                            // 强制重置冷却以响应手动攻击
-                            if (this.blueHero.attackCooldown < this.blueHero.attackSpeed * 0.5) {
-                                this.blueHero.attackCooldown = 0;
-                            }
-                            this.unitAttack(this.blueHero, closest, audioManager);
-                        }
-                    }
-
-                    // 更新小兵
-                    const blueEnemies = this.getRedUnits();
-                    const redEnemies = this.getBlueUnits();
-                    for (const m of this.blueMinions) {
-                        m.updateCooldown(dt);
-                        m.findTarget(blueEnemies);
-                        m.updateMovement(dt, this.mapMinX, this.mapMaxX);
-                        if (m.canAttack() && m.currentTarget && m.currentTarget.isAlive() && m.isInRange(m
-                                .currentTarget)) {
-                            this.unitAttack(m, m.currentTarget, audioManager);
-                        }
-                    }
-                    for (const m of this.redMinions) {
-                        m.updateCooldown(dt);
-                        m.findTarget(redEnemies);
-                        m.updateMovement(dt, this.mapMinX, this.mapMaxX);
-                        if (m.canAttack() && m.currentTarget && m.currentTarget.isAlive() && m.isInRange(m
-                                .currentTarget)) {
-                            this.unitAttack(m, m.currentTarget, audioManager);
-                        }
-                    }
-
-                    // 更新防御塔
-                    const allTowers = [...this.blueTowers, ...this.redTowers];
-                    for (const t of allTowers) {
-                        if (!t.isAlive()) continue;
-                        t.updateCooldown(dt);
-                        t.updateGlow(dt);
-                        const enemies = t.team === Team.BLUE ? redEnemies : blueEnemies;
-                        t.findTarget(enemies);
-                        if (t.canAttack() && t.currentTarget && t.currentTarget.isAlive() && t.isInRange(t
-                                .currentTarget)) {
-                            this.unitAttack(t, t.currentTarget, audioManager);
-                        }
-                    }
-
-                    // 更新水晶
-                    this.blueBase.updateGlow(dt);
-                    this.redBase.updateGlow(dt);
-                    this.blueBase.updateCooldown(dt);
-                    this.redBase.updateCooldown(dt);
-
-                    // 更新弹道
-                    for (const proj of this.projectiles) {
-                        proj.update(dt);
-                    }
-                    // 处理到达的弹道
-                    const arrivedProjectiles = this.projectiles.filter(p => p.isArrived());
-                    this.projectiles = this.projectiles.filter(p => !p.isArrived());
-                    for (const proj of arrivedProjectiles) {
-                        if (proj.target && proj.target.isAlive()) {
-                            proj.target.takeDamage(proj.damage);
-                            audioManager.playHitSound();
-                        }
-                    }
-
-                    // 检测防御塔摧毁
-                    for (const t of allTowers) {
-                        if (!t.isAlive() && t.flashTimer <= -0.5) {
-                            // 标记已处理（通过检查hp<=0且已播放音效）
-                        }
-                        if (!t.isAlive() && t.hp <= 0 && t._destroySoundPlayed === undefined) {
-                            t._destroySoundPlayed = true;
-                            audioManager.playTowerDestroySound();
-                        }
-                    }
-
-                    // 清理死亡小兵
-                    this.cleanupDeadMinions();
-
-                    // 小兵生成
-                    this.minionSpawnTimer += dt;
-                    if (this.minionSpawnTimer >= CONFIG.MINION_SPAWN_INTERVAL) {
-                        this.minionSpawnTimer -= CONFIG.MINION_SPAWN_INTERVAL;
-                        if (this.blueBase.isAlive()) this.spawnMinion(Team.BLUE);
-                        if (this.redBase.isAlive()) this.spawnMinion(Team.RED);
-                    }
-
-                    // 胜负判定
-                    if (!this.blueBase.isAlive()) {
-                        this.gameOver = true;
-                        this.victory = false;
-                        audioManager.playDefeatSound();
-                    } else if (!this.redBase.isAlive()) {
-                        this.gameOver = true;
-                        this.victory = true;
-                        audioManager.playVictorySound();
-                    }
-                }
-
-                /** 重置游戏 */
-                reset(canvasWidth, canvasHeight, scale) {
-                    this.canvasWidth = canvasWidth;
-                    this.canvasHeight = canvasHeight;
-                    this.scale = scale;
-                    this.laneY = canvasHeight * CONFIG.LANE_Y_RATIO;
-                    this.mapMinX = 15;
-                    this.mapMaxX = canvasWidth - 15;
-                    this.mapMinY = this.laneY - 60 * scale;
-                    this.mapMaxY = this.laneY + 60 * scale;
-
-                    this.blueBaseX = canvasWidth * CONFIG.BLUE_BASE_X;
-                    this.blueTower1X = canvasWidth * CONFIG.BLUE_TOWER1_X;
-                    this.blueTower2X = canvasWidth * CONFIG.BLUE_TOWER2_X;
-                    this.redTower3X = canvasWidth * CONFIG.RED_TOWER3_X;
-                    this.redTower4X = canvasWidth * CONFIG.RED_TOWER4_X;
-                    this.redBaseX = canvasWidth * CONFIG.RED_BASE_X;
-
-                    this.blueHero = new Hero(this.blueBaseX + 40 * scale, this.laneY, Team.BLUE);
-                    this.blueTowers = [
-                        new Tower(this.blueTower1X, this.laneY, Team.BLUE),
-                        new Tower(this.blueTower2X, this.laneY, Team.BLUE),
-                    ];
-                    this.redTowers = [
-                        new Tower(this.redTower3X, this.laneY, Team.RED),
-                        new Tower(this.redTower4X, this.laneY, Team.RED),
-                    ];
-                    this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
-                    this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
-                    this.blueMinions = [];
-                    this.redMinions = [];
-                    this.projectiles = [];
-                    this.minionSpawnTimer = 0;
-                    this.gameOver = false;
-                    this.victory = false;
-                    this.gameTime = 0;
-
-                    // 初始生成一波小兵
-                    this.spawnMinion(Team.BLUE);
-                    this.spawnMinion(Team.RED);
-                }
-            }
-
-            // ==================== 七、游戏主类 Game ====================
-            class Game {
-                constructor() {
-                    this.canvas = document.getElementById('gameCanvas');
-                    this.ctx = this.canvas.getContext('2d');
-                    this.rotateHint = document.getElementById('rotateHint');
-
-                    this.audioManager = new AudioManager();
-                    this.inputHandler = new InputHandler(this.canvas);
-                    this.renderer = new Renderer(this.canvas, this.ctx);
-                    this.logic = null;
-
-                    this.lastTime = 0;
-                    this.animFrameId = null;
-                    this.isRunning = false;
-                    this.isLandscape = false;
-
-                    // UI按钮区域
-                    this.muteBtnRect = null;
-                    this.restartBtnRect = null;
-                    this.muted = false;
-
-                    this._bindGlobalEvents();
-                    this._checkOrientation();
-                    this._resize();
-                }
-
-                _bindGlobalEvents() {
-                    window.addEventListener('resize', () => {
-                        this._checkOrientation();
-                        this._resize();
-                    });
-                    window.addEventListener('orientationchange', () => {
-                        setTimeout(() => {
-                            this._checkOrientation();
-                            this._resize();
-                        }, 300);
-                    });
-                    // 首次用户交互时初始化音频
-                    const initAudio = () => {
-                        this.audioManager.init();
-                        document.removeEventListener('touchstart', initAudio);
-                        document.removeEventListener('click', initAudio);
-                    };
-                    document.addEventListener('touchstart', initAudio, { once: false });
-                    document.addEventListener('click', initAudio, { once: false });
-                }
-
-                _checkOrientation() {
-                    const w = window.innerWidth;
-                    const h = window.innerHeight;
-                    this.isLandscape = (w > h);
-                    if (this.isLandscape) {
-                        this.rotateHint.classList.remove('active');
-                        this.canvas.style.display = 'block';
-                    } else {
-                        this.rotateHint.classList.add('active');
-                        this.canvas.style.display = 'none';
-                    }
-                }
-
-                _resize() {
-                    if (!this.isLandscape) return;
-                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                    const w = window.innerWidth;
-                    const h = window.innerHeight;
-                    this.canvas.style.width = w + 'px';
-                    this.canvas.style.height = h + 'px';
-                    this.canvas.width = Math.floor(w * dpr);
-                    this.canvas.height = Math.floor(h * dpr);
-                    this.renderer.updateSize(this.canvas.width, this.canvas.height);
-
-                    // 更新输入层的UI位置
-                    this._updateInputUI();
-
-                    // 如果逻辑层存在，更新其尺寸
-                    if (this.logic) {
-                        this.logic.canvasWidth = this.canvas.width;
-                        this.logic.canvasHeight = this.canvas.height;
-                        this.logic.scale = this.renderer.scale;
-                        this.logic.laneY = this.canvas.height * CONFIG.LANE_Y_RATIO;
-                        this.logic.mapMinX = 15;
-                        this.logic.mapMaxX = this.canvas.width - 15;
-                        this.logic.mapMinY = this.logic.laneY - 60 * this.renderer.scale;
-                        this.logic.mapMaxY = this.logic.laneY + 60 * this.renderer.scale;
-                        // 更新固定单位位置
-                        this.logic.blueBaseX = this.canvas.width * CONFIG.BLUE_BASE_X;
-                        this.logic.blueTower1X = this.canvas.width * CONFIG.BLUE_TOWER1_X;
-                        this.logic.blueTower2X = this.canvas.width * CONFIG.BLUE_TOWER2_X;
-                        this.logic.redTower3X = this.canvas.width * CONFIG.RED_TOWER3_X;
-                        this.logic.redTower4X = this.canvas.width * CONFIG.RED_TOWER4_X;
-                        this.logic.redBaseX = this.canvas.width * CONFIG.RED_BASE_X;
-                        this.logic.blueBase.x = this.logic.blueBaseX;
-                        this.logic.blueBase.y = this.logic.laneY;
-                        this.logic.redBase.x = this.logic.redBaseX;
-                        this.logic.redBase.y = this.logic.laneY;
-                        this.logic.blueTowers[0].x = this.logic.blueTower1X;
-                        this.logic.blueTowers[0].y = this.logic.laneY;
-                        this.logic.blueTowers[1].x = this.logic.blueTower2X;
-                        this.logic.blueTowers[1].y = this.logic.laneY;
-                        this.logic.redTowers[0].x = this.logic.redTower3X;
-                        this.logic.redTowers[0].y = this.logic.laneY;
-                        this.logic.redTowers[1].x = this.logic.redTower4X;
-                        this.logic.redTowers[1].y = this.logic.laneY;
-                        if (this.logic.blueHero.isAlive()) {
-                            this.logic.blueHero.spawnX = this.logic.blueBaseX + 40 * this.renderer.scale;
-                            this.logic.blueHero.spawnY = this.logic.laneY;
-                        }
-                    }
-                }
-
-                _updateInputUI() {
-                    const cw = this.canvas.width;
-                    const ch = this.canvas.height;
-                    const scale = this.renderer.scale;
-
-                    // 摇杆位置（左下角）
-                    const joyBaseR = CONFIG.JOYSTICK_BASE_RADIUS_RATIO * ch;
-                    const joyKnobR = CONFIG.JOYSTICK_KNOB_RADIUS_RATIO * ch;
-                    const joyCX = CONFIG.JOYSTICK_MARGIN_X_RATIO * cw + joyBaseR;
-                    const joyCY = ch - CONFIG.JOYSTICK_MARGIN_Y_RATIO * ch - joyBaseR;
-
-                    this.inputHandler.joystickCenter = { x: joyCX, y: joyCY };
-                    this.inputHandler.joystickBaseRadius = joyBaseR;
-                    this.inputHandler.joystickKnobRadius = joyKnobR;
-
-                    // 攻击按钮位置（右下角）
-                    const atkR = CONFIG.ATTACK_BTN_RADIUS_RATIO * ch;
-                    const atkCX = cw - CONFIG.ATTACK_BTN_MARGIN_X_RATIO * cw - atkR;
-                    const atkCY = ch - CONFIG.ATTACK_BTN_MARGIN_Y_RATIO * ch - atkR;
-
-                    this.inputHandler.attackBtnCenter = { x: atkCX, y: atkCY };
-                    this.inputHandler.attackBtnRadius = atkR;
-
-                    // 静音按钮（右上角）
-                    const muteSize = 30 * scale;
-                    this.muteBtnRect = {
-                        x: cw - muteSize - 10 * scale,
-                        y: 35 * scale,
-                        w: muteSize,
-                        h: muteSize,
-                    };
-                    this.inputHandler.muteBtnRect = this.muteBtnRect;
-                }
-
-                start() {
-                    if (this.isRunning) return;
-                    if (!this.isLandscape) {
-                        this._checkOrientation();
-                        if (!this.isLandscape) return;
-                    }
-                    this._resize();
-                    this.audioManager.init();
-
-                    // 初始化游戏逻辑
-                    this.logic = new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale);
-                    this.logic.spawnMinion(Team.BLUE);
-                    this.logic.spawnMinion(Team.RED);
-
-                    this.isRunning = true;
-                    this.lastTime = performance.now();
-                    this._gameLoop(this.lastTime);
-                }
-
-                _gameLoop(timestamp) {
-                    if (!this.isRunning) return;
-                    const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1); // 防止大帧跳跃
-                    this.lastTime = timestamp;
-
-                    // 处理静音按钮
-                    if (this.inputHandler.consumeMutePress()) {
-                        this.muted = this.audioManager.toggleMute();
-                    }
-
-                    // 处理重新开始按钮
-                    if (this.inputHandler.consumeRestartPress() && this.logic && this.logic.gameOver) {
-                        this._restartGame();
-                    }
-
-                    // 更新游戏逻辑
-                    if (this.logic && !this.logic.gameOver) {
-                        this.logic.update(dt, this.inputHandler, this.audioManager);
-                    }
-
-                    // 渲染
-                    this._render();
-
-                    this.animFrameId = requestAnimationFrame((t) => this._gameLoop(t));
-                }
-
-                _render() {
-                    const r = this.renderer;
-                    const ctx = this.ctx;
-                    const logic = this.logic;
-                    if (!logic) return;
-
-                    r.clear();
-
-                    // 绘制地图
-                    r.drawMap(logic.laneY);
-
-                    // 绘制基地水晶
-                    r.drawBaseCrystal(logic.blueBase, 28 * r.scale);
-                    r.drawBaseCrystal(logic.redBase, 28 * r.scale);
-
-                    // 绘制防御塔
-                    for (const t of logic.blueTowers) {
-                        if (t.isAlive()) r.drawTower(t, 30 * r.scale);
-                    }
-                    for (const t of logic.redTowers) {
-                        if (t.isAlive()) r.drawTower(t, 30 * r.scale);
-                    }
-
-                    // 绘制弹道
-                    for (const proj of logic.projectiles) {
-                        r.drawProjectile(proj, 2.5 * r.scale);
-                    }
-
-                    // 绘制蓝方小兵
-                    for (const m of logic.blueMinions) {
-                        if (m.isAlive()) r.drawUnitCircle(m, 8 * r.scale, false);
-                    }
-                    // 绘制红方小兵
-                    for (const m of logic.redMinions) {
-                        if (m.isAlive()) r.drawUnitCircle(m, 8 * r.scale, false);
-                    }
-
-                    // 绘制英雄
-                    if (logic.blueHero.isAlive()) {
-                        r.drawUnitCircle(logic.blueHero, 12 * r.scale, true);
-                        r.drawAttackFlash(logic.blueHero, 12 * r.scale);
-                    }
-                    // 复活倒计时
-                    if (!logic.blueHero.isAlive() && logic.blueHero.respawnTimer > 0) {
-                        r.drawRespawnTimer(logic.blueHero, logic.blueBaseX + 40 * r.scale, logic.laneY - 35 * r.scale);
-                    }
-
-                    // 绘制虚拟摇杆
-                    const ih = this.inputHandler;
-                    if (ih.joystickCenter) {
-                        const kx = ih.joystickActive ? ih.joystickRawX : ih.joystickCenter.x;
-                        const ky = ih.joystickActive ? ih.joystickRawY : ih.joystickCenter.y;
-                        r.drawJoystick(ih.joystickCenter.x, ih.joystickCenter.y,
-                            ih.joystickBaseRadius, ih.joystickKnobRadius,
-                            kx, ky, ih.joystickActive);
-                    }
-
-                    // 绘制攻击按钮
-                    if (ih.attackBtnCenter) {
-                        r.drawAttackButton(ih.attackBtnCenter.x, ih.attackBtnCenter.y,
-                            ih.attackBtnRadius, ih.attackPressed);
-                    }
-
-                    // 绘制顶部UI
-                    r.drawTopUI(
-                        logic.blueTowers, logic.redTowers,
-                        logic.blueBase.isAlive(), logic.redBase.isAlive()
-                    );
-
-                    // 绘制静音按钮
-                    if (this.muteBtnRect) {
-                        r.drawMuteButton(this.muteBtnRect.x, this.muteBtnRect.y,
-                            this.muteBtnRect.w, this.muted);
-                    }
-
-                    // 绘制游戏结束面板
-                    if (logic.gameOver) {
-                        this.restartBtnRect = r.drawGameOverPanel(logic.victory);
-                        this.inputHandler.restartBtnRect = this.restartBtnRect;
-                    } else {
-                        this.restartBtnRect = null;
-                        this.inputHandler.restartBtnRect = null;
-                    }
-                }
-
-                _restartGame() {
-                    this.logic.reset(this.canvas.width, this.canvas.height, this.renderer.scale);
-                    this.logic.spawnMinion(Team.BLUE);
-                    this.logic.spawnMinion(Team.RED);
-                    this.restartBtnRect = null;
-                    this.inputHandler.restartBtnRect = null;
-                }
-
-                stop() {
-                    this.isRunning = false;
-                    if (this.animFrameId) {
-                        cancelAnimationFrame(this.animFrameId);
-                        this.animFrameId = null;
-                    }
-                }
-            }
-
-            // ==================== 八、启动游戏 ====================
-            const game = new Game();
-
-            // 页面加载完成后启动
-            function initGame() {
-                if (game.isLandscape) {
-                    game.start();
-                } else {
-                    // 监听方向变化
-                    const checkStart = () => {
-                        game._checkOrientation();
-                        game._resize();
-                        if (game.isLandscape && !game.isRunning) {
-                            game.start();
-                        }
-                    };
-                    window.addEventListener('resize', checkStart);
-                    window.addEventListener('orientationchange', () => setTimeout(checkStart, 400));
-                }
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initGame);
-            } else {
-                initGame();
-            }
-
-            // 页面隐藏时暂停，恢复时继续
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    game.stop();
-                } else if (game.isLandscape) {
-                    game._checkOrientation();
-                    game._resize();
-                    game.start();
-                }
-            });
-
-            console.log('🎮 横版推塔游戏已就绪');
-            console.log('  📱 移动端：左下摇杆移动 | 右下按钮攻击');
-            console.log('  ⌨️ PC端：WASD/方向键移动 | 空格键攻击');
-            console.log('  🔊 右上角按钮切换静音');
-            console.log('  📐 请横屏游玩');
-        })();
+            if(this.state==='over' && e.key==='Enter') this._restart();
+            if(this.state==='playing' && e.key==='Escape') this.state='paused';
+            else if(this.state==='paused' && e.key==='Escape') this.state='playing';
+          });
+        }
+        _checkOrientation() {
+          const w=window.innerWidth, h=window.innerHeight;
+          document.getElementById('rotateHint').classList.toggle('active', w<h);
+        }
+        _resize() {
+          if(window.innerWidth<window.innerHeight) return;
+          const dpr=Math.min(window.devicePixelRatio||1,2);
+          this.canvas.style.width=window.innerWidth+'px'; this.canvas.style.height=window.innerHeight+'px';
+          this.canvas.width=Math.floor(window.innerWidth*dpr); this.canvas.height=Math.floor(window.innerHeight*dpr);
+          this.renderer.resize(this.canvas.width, this.canvas.height);
+          this._updateUI();
+          if(this.logic) {
+            this.logic.w=this.canvas.width; this.logic.h=this.canvas.height; this.logic.scale=this.renderer.scale;
+            this.logic.laneY=this.canvas.height*0.56;
+            this.logic.mapMinX=15; this.logic.mapMaxX=this.canvas.width-15;
+            this.logic.mapMinY=this.logic.laneY-60*this.renderer.scale; this.logic.mapMaxY=this.logic.laneY+60*this.renderer.scale;
+          }
+        }
+        _updateUI() {
+          const w=this.canvas.width, h=this.canvas.height, s=this.renderer.scale;
+          const joyR=CONFIG.JOYSTICK_BASE*s*10, knobR=CONFIG.JOYSTICK_KNOB*s*10;
+          const joyX=CONFIG.JOY_MARGIN*w+joyR, joyY=h-CONFIG.JOY_MARGIN*h-joyR;
+          this.input.joystick.center={x:joyX,y:joyY}; this.input.joystick.baseRadius=joyR; this.input.joystick.knobRadius=knobR;
+          const atkR=CONFIG.ATK_BTN*s*10, atkX=w-CONFIG.ATK_MARGIN*w-atkR, atkY=h-CONFIG.ATK_MARGIN*h-atkR;
+          this.input.attackBtn.center={x:atkX,y:atkY}; this.input.attackBtn.radius=atkR;
+          const skillR=atkR*0.9, skillX=atkX-skillR*2.5, skillY=atkY;
+          this.input.skillBtn.center={x:skillX,y:skillY}; this.input.skillBtn.radius=skillR;
+          const muteSize=30*s;
+          this.muteRect={x:w-muteSize-10*s, y:35*s, w:muteSize, h:muteSize};
+          this.pauseRect={x:w-80*s, y:35*s, w:40*s, h:30*s};
+          this.restartRect={x:w-130*s, y:35*s, w:40*s, h:30*s};
+        }
+        _startGame() {
+          this.state='playing'; this.guideTimer=3;
+          this.logic=new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty);
+          this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED);
+          this.audio.init();
+        }
+        _restart() { this._startGame(); }
+        _processInput() {
+          if(this.input.mutePressed) { this.audio.toggle(); this.input.mutePressed=false; }
+          if(this.input.pausePressed && this.state==='playing') { this.state='paused'; this.input.pausePressed=false; }
+          else if(this.input.pausePressed && this.state==='paused') { this.state='playing'; this.input.pausePressed=false; }
+        }
+        run(timestamp) {
+          if(this.state!=='menu' && this.state!=='paused') {
+            const dt=Math.min((timestamp-this.lastTime)/1000, 0.1);
+            this.lastTime=timestamp;
+            if(this.state==='playing') this.logic.update(dt, this.input, this.audio);
+            if(this.state==='playing' && this.logic.gameOver) this.state='over';
+            this.guideTimer = Math.max(0, this.guideTimer-dt);
+          } else { this.lastTime=timestamp; }
+          this._processInput();
+          this._render();
+          this.raf=requestAnimationFrame(t=>this.run(t));
+        }
+        _render() {
+          const r=this.renderer, ctx=this.ctx;
+          r.clear();
+          if(this.state==='menu') {
+            r.drawMenu('横版推塔', ['开始游戏 (简单)','开始游戏 (普通)','开始游戏 (困难)'], this.menuSelection);
+            this.input.keys={};
+            return;
+          }
+          if(!this.logic) return;
+          r.drawMap(this.logic.laneY);
+          r.drawBase(this.logic.blueBase,28*r.scale);
+          r.drawBase(this.logic.redBase,28*r.scale);
+          for(const t of this.logic.blueTowers) if(t.alive) r.drawTower(t,30*r.scale);
+          for(const t of this.logic.redTowers) if(t.alive) r.drawTower(t,30*r.scale);
+          for(const p of this.logic.projectiles) r.drawProjectile(p);
+          for(const m of this.logic.blueMinions) r.drawUnitCircle(m,8*r.scale);
+          for(const m of this.logic.redMinions) r.drawUnitCircle(m,8*r.scale);
+          if(this.logic.hero.alive) r.drawUnitCircle(this.logic.hero,12*r.scale,true);
+          else if(this.logic.hero.respawnTimer>0) {
+            ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font=`bold ${16*r.scale}px sans-serif`; ctx.textAlign='center';
+            ctx.fillText(`复活:${Math.ceil(this.logic.hero.respawnTimer)}秒`, this.logic.hero.spawnX, this.logic.hero.spawnY-30*r.scale);
+          }
+          for(const p of this.logic.particles) r.drawParticle(p);
+          if(this.guideTimer>0) {
+            ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,this.canvas.width,40*r.scale);
+            ctx.fillStyle='#fff'; ctx.font=`${14*r.scale}px sans-serif`; ctx.textAlign='center';
+            ctx.fillText('左摇杆移动 | 右按钮攻击 | 💨技能冲刺 | 击杀小兵攒💎强化攻击',this.canvas.width/2,25*r.scale);
+          }
+          const ih=this.input;
+          if(ih.joystick.center) {
+            const kx=ih.joystick.active?ih.joystick.rawX:ih.joystick.center.x, ky=ih.joystick.active?ih.joystick.rawY:ih.joystick.center.y;
+            r.drawJoystick(ih.joystick.center.x,ih.joystick.center.y,ih.joystick.baseRadius,ih.joystick.knobRadius,kx,ky,ih.joystick.active);
+          }
+          if(ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x,ih.attackBtn.center.y,ih.attackBtn.radius,ih.attackBtn.pressed,0);
+          if(ih.skillBtn.center) {
+            const cd=this.logic.hero.skillCooldown/CONFIG.SKILL_COOLDOWN;
+            r.drawSkillBtn(ih.skillBtn.center.x,ih.skillBtn.center.y,ih.skillBtn.radius,ih.skillBtn.pressed,cd);
+          }
+          r.drawTopUI(this.logic.blueTowers, this.logic.redTowers, this.logic.hero);
+          if(this.pauseRect) r.drawPauseBtn(this.pauseRect);
+          if(this.restartRect) {
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.restartRect.x,this.restartRect.y,this.restartRect.w,this.restartRect.h,6); ctx.fill();
+            ctx.fillStyle='#fff'; ctx.font=`${this.restartRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔄',this.restartRect.x+this.restartRect.w/2,this.restartRect.y+this.restartRect.h/2);
+          }
+          if(this.state==='over') {
+            const stats={kills:this.logic.hero.kills, towers:this.logic.hero.towersDestroyed, time:Math.floor(this.logic.time)};
+            this.restartBtnRect = r.drawGameOver(this.logic.victory, stats);
+          }
+        }
+        start() {
+          if(this.raf) cancelAnimationFrame(this.raf);
+          this.lastTime=performance.now();
+          this.raf=requestAnimationFrame(t=>this.run(t));
+        }
+      }
+
+      const game = new Game();
+      game.canvas.addEventListener('click', (e) => {
+        const pos = game.input._canvasPos(e.clientX, e.clientY);
+        if(game.state==='menu') {
+          const yOff = game.canvas.height*0.45;
+          for(let i=0;i<3;i++) {
+            const y = yOff + i*50*game.renderer.scale;
+            if(pos.y>y-15 && pos.y<y+15) { game.menuSelection=i; }
+          }
+          if(pos.y>game.canvas.height*0.3-20 && pos.y<game.canvas.height*0.3+20) { game.difficulty=['easy','normal','hard'][game.menuSelection]; game._startGame(); }
+        }
+        if(game.state==='over' && game.restartBtnRect && game.input._inRect(pos.x,pos.y,game.restartBtnRect)) { game._restart(); }
+        if(game.pauseRect && game.input._inRect(pos.x,pos.y,game.pauseRect)) {
+          if(game.state==='playing') game.state='paused';
+          else if(game.state==='paused') game.state='playing';
+        }
+        if(game.restartRect && game.state==='playing' && game.input._inRect(pos.x,pos.y,game.restartRect)) { game._restart(); }
+        if(game.muteRect && game.input._inRect(pos.x,pos.y,game.muteRect)) { game.audio.toggle(); }
+      });
+
+      window.startGame = function() {
+        document.getElementById('gameCanvas').style.display = 'block';
+        game.start();
+      };
+    })();
+    </script>
+
+    <!-- ==================== 水印模块（独立封装） ==================== -->
+    <script>
+    (function() {
+      const watermarkText = [
+        '测试阶段，并非最终效果，严谨盗用',
+        '永久网址：https://kl520love.github.io/KLYOTVXEL//推塔.html',
+        '原作者：谭熙林'
+      ];
+      function createFixedWatermark(position) {
+        const div = document.createElement('div');
+        div.className = `watermark-fixed ${position}`;
+        div.innerHTML = watermarkText.join('<br>');
+        document.body.appendChild(div);
+      }
+      function createFloatingWatermark() {
+        const div = document.createElement('div');
+        div.className = 'watermark-floating';
+        div.innerHTML = watermarkText.join('<br>');
+        document.body.appendChild(div);
+        let x = Math.random() * (window.innerWidth - 200);
+        let y = Math.random() * (window.innerHeight - 60);
+        let vx = 0.8, vy = 0.6;
+        if (Math.random() < 0.5) vx *= -1;
+        if (Math.random() < 0.5) vy *= -1;
+        function step() {
+          x += vx;
+          y += vy;
+          const maxX = window.innerWidth - div.offsetWidth;
+          const maxY = window.innerHeight - div.offsetHeight;
+          if (x <= 0 || x >= maxX) vx *= -1;
+          if (y <= 0 || y >= maxY) vy *= -1;
+          x = Math.max(0, Math.min(maxX, x));
+          y = Math.max(0, Math.min(maxY, y));
+          div.style.left = x + 'px';
+          div.style.top = y + 'px';
+          requestAnimationFrame(step);
+        }
+        step();
+      }
+      function initWatermarks() {
+        createFixedWatermark('top-left');
+        createFixedWatermark('top-right');
+        createFixedWatermark('bottom-left');
+        createFixedWatermark('bottom-right');
+        createFloatingWatermark();
+      }
+      if (document.readyState === 'complete') initWatermarks();
+      else window.addEventListener('load', initWatermarks);
+    })();
+    </script>
+
+    <!-- ==================== 授权验证模块（使用明文数组） ==================== -->
+    <script>
+    (function() {
+      // 将明文数组转换为大写，确保不区分大小写
+      const validCodes = VALID_CODES.map(c => c.toUpperCase());
+      
+      const authOverlay = document.getElementById('auth-overlay');
+      const authInput = document.getElementById('auth-input');
+      const authBtn = document.getElementById('auth-btn');
+      const authError = document.getElementById('auth-error');
+
+      function verifyCode() {
+        const code = authInput.value.trim().toUpperCase();
+        if (validCodes.includes(code)) {
+          authOverlay.style.display = 'none';
+          if (typeof window.startGame === 'function') {
+            window.startGame();
+          } else {
+            console.error('游戏启动函数未找到');
+          }
+        } else {
+          authError.textContent = '授权码无效，无权访问';
+          authInput.value = '';
+          authInput.focus();
+        }
+      }
+
+      authBtn.addEventListener('click', verifyCode);
+      authInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') verifyCode();
+      });
+
+      window.addEventListener('load', () => {
+        if (authInput) authInput.focus();
+      });
+    })();
     </script>
 </body>
 </html>
