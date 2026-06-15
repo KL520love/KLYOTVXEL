@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-    <title>横版推塔·修复版</title>
+    <title>横版推塔·iOS触控修复</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -24,7 +24,6 @@
         .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
         @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
 
-        /* 水印样式：降低对比度，更柔和 */
         .watermark-fixed{position:fixed;pointer-events:none;z-index:500;font-size:10px;line-height:1.4;opacity:0.5;color:#aac8d4;text-shadow:0 0 1px rgba(0,0,0,0.3);max-width:180px;word-wrap:break-word;}
         .watermark-fixed.top-left{top:12px;left:12px;text-align:left;}
         .watermark-fixed.top-right{top:12px;right:12px;text-align:right;}
@@ -47,19 +46,12 @@
         </div>
     </div>
 
-    <!-- ★ 授权码配置区（在此直接增删授权码）★ -->
+    <!-- ★ 授权码配置区 ★ -->
     <script>
-    // ★★★ 授权码白名单 – 直接修改下面数组即可 ★★★
-    const VALID_CODES = [
-        'TXL001',
-        'TXL002',
-        'TXL003',
-        'TXL004',
-        'TXL005'
-    ];
+    const VALID_CODES = [ 'TXL001', 'TXL002', 'TXL003', 'TXL004', 'TXL005' ];
     </script>
 
-    <!-- 游戏主逻辑 -->
+    <!-- ==================== 游戏主逻辑 ==================== -->
     <script>
     (function() {
       const CONFIG = {
@@ -68,11 +60,8 @@
         TOWER_HP: 1500, TOWER_ATK: 120, TOWER_RANGE: 160,
         BASE_HP: 3000,
         DIFFICULTY: { easy: { hpMul:0.7, atkMul:0.7 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:1.4, atkMul:1.3 } },
-        SKILL_COOLDOWN: 8,
-        DASH_DISTANCE: 130,
-        CRYSTAL_BOOST_COST: 5,
-        CRYSTAL_BOOST_ATK_MUL: 1.6,
-        CRYSTAL_BOOST_DURATION: 5,
+        SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
+        CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
         JOYSTICK_BASE: 0.09, JOYSTICK_KNOB: 0.04, ATK_BTN: 0.055, JOY_MARGIN: 0.09, ATK_MARGIN: 0.12
       };
 
@@ -192,6 +181,8 @@
         _inCircle(px,py,cx,cy,r) { return (px-cx)**2+(py-cy)**2 <= r*r; }
         _touchStart(e) {
           e.preventDefault();
+          // 避免在UI未初始化时出错
+          if(!this.joystick.center || !this.attackBtn.center) return;
           for(const t of e.changedTouches) {
             const p=this._canvasPos(t.clientX,t.clientY);
             if(!this.joystick.id && this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.5)) { this.joystick.id=t.identifier; this.joystick.active=true; this._updateJoystick(p.x,p.y); }
@@ -336,11 +327,10 @@
           this.input.attackBtn.center={x:atkX,y:atkY}; this.input.attackBtn.radius=atkR;
           const skillR=atkR*0.9, skillX=atkX-skillR*2.5, skillY=atkY;
           this.input.skillBtn.center={x:skillX,y:skillY}; this.input.skillBtn.radius=skillR;
-          // 顶部按钮重新布局，避免与右下角控件重叠
           const muteSize=30*s;
-          this.restartRect={x:20*s, y:35*s, w:40*s, h:30*s};   // 左侧重启
-          this.muteRect={x:w/2-20*s, y:35*s, w:muteSize, h:muteSize}; // 中间静音
-          this.pauseRect={x:w-60*s, y:35*s, w:40*s, h:30*s};   // 右侧暂停
+          this.restartRect={x:20*s, y:35*s, w:40*s, h:30*s};
+          this.muteRect={x:w/2-20*s, y:35*s, w:muteSize, h:muteSize};
+          this.pauseRect={x:w-60*s, y:35*s, w:40*s, h:30*s};
         }
         _startGame() { this.state='playing'; this.guideTimer=3; this.logic=new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty); this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED); this.audio.init(); }
         _restart() { this._startGame(); }
@@ -384,20 +374,41 @@
       }
 
       const game = new Game();
-      game.canvas.addEventListener('click', (e) => {
-        const pos = game.input._canvasPos(e.clientX, e.clientY);
+
+      // 统一处理画布点击/触摸（移动端兼容）
+      function handleCanvasClick(pos) {
         if(game.state==='menu') {
           const yOff = game.canvas.height*0.45;
           for(let i=0;i<3;i++) {
             const y = yOff + i*50*game.renderer.scale;
-            if(pos.y>y-15 && pos.y<y+15) { game.menuSelection=i; game.difficulty=['easy','normal','hard'][i]; game._startGame(); break; }
+            if(pos.y>y-20 && pos.y<y+20) { // 扩大点击热区
+              game.menuSelection=i;
+              game.difficulty=['easy','normal','hard'][i];
+              game._startGame();
+              break;
+            }
           }
         }
-        if(game.state==='over' && game.restartBtnRect && game.input._inRect(pos.x,pos.y,game.restartBtnRect)) { game._restart(); }
-        if(game.pauseRect && game.input._inRect(pos.x,pos.y,game.pauseRect)) { if(game.state==='playing') game.state='paused'; else if(game.state==='paused') game.state='playing'; }
-        if(game.restartRect && game.state==='playing' && game.input._inRect(pos.x,pos.y,game.restartRect)) { game._restart(); }
-        if(game.muteRect && game.input._inRect(pos.x,pos.y,game.muteRect)) { game.audio.toggle(); }
+        else if(game.state==='over' && game.restartBtnRect && game.input._inRect(pos.x,pos.y,game.restartBtnRect)) { game._restart(); }
+        else if(game.pauseRect && game.input._inRect(pos.x,pos.y,game.pauseRect)) { if(game.state==='playing') game.state='paused'; else if(game.state==='paused') game.state='playing'; }
+        else if(game.restartRect && game.state==='playing' && game.input._inRect(pos.x,pos.y,game.restartRect)) { game._restart(); }
+        else if(game.muteRect && game.input._inRect(pos.x,pos.y,game.muteRect)) { game.audio.toggle(); }
+      }
+
+      // PC鼠标点击
+      game.canvas.addEventListener('click', (e) => {
+        const pos = game.input._canvasPos(e.clientX, e.clientY);
+        handleCanvasClick(pos);
       });
+
+      // 移动端触摸（关键修复）
+      game.canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // 阻止后续click、页面缩放
+        const touch = e.changedTouches[0];
+        if (!touch) return;
+        const pos = game.input._canvasPos(touch.clientX, touch.clientY);
+        handleCanvasClick(pos);
+      }, { passive: false });
 
       window.startGame = function() { document.getElementById('gameCanvas').style.display = 'block'; game.start(); };
     })();
