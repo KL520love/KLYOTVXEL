@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-    <title>横版推塔·iOS触控修复</title>
+    <title>横版推塔·全平台修复版</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -24,13 +24,9 @@
         .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
         @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
 
-        .watermark-fixed{position:fixed;pointer-events:none;z-index:500;font-size:10px;line-height:1.4;opacity:0.5;color:#aac8d4;text-shadow:0 0 1px rgba(0,0,0,0.3);max-width:180px;word-wrap:break-word;}
-        .watermark-fixed.top-left{top:12px;left:12px;text-align:left;}
-        .watermark-fixed.top-right{top:12px;right:12px;text-align:right;}
-        .watermark-fixed.bottom-left{bottom:12px;left:12px;text-align:left;}
-        .watermark-fixed.bottom-right{bottom:12px;right:12px;text-align:right;}
-        .watermark-floating{position:fixed;pointer-events:none;z-index:500;font-size:12px;line-height:1.4;color:rgba(200,200,200,0.3);text-align:center;white-space:nowrap;will-change:left,top;}
-        @media(max-width:600px){.watermark-fixed{font-size:8px;max-width:140px;}.watermark-floating{font-size:9px;}}
+        /* 水印仅保留一处，底部居中，低透明度 */
+        .watermark-single{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:500;font-size:10px;line-height:1.4;color:rgba(200,200,200,0.25);text-align:center;white-space:nowrap;}
+        @media(max-width:600px){.watermark-single{font-size:8px;}}
     </style>
 </head>
 <body>
@@ -64,6 +60,8 @@
         CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
         JOYSTICK_BASE: 0.09, JOYSTICK_KNOB: 0.04, ATK_BTN: 0.055, JOY_MARGIN: 0.09, ATK_MARGIN: 0.12
       };
+
+      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
       class AudioManager {
         constructor() { this.ctx = null; this.muted = false; this.ready = false; }
@@ -181,7 +179,6 @@
         _inCircle(px,py,cx,cy,r) { return (px-cx)**2+(py-cy)**2 <= r*r; }
         _touchStart(e) {
           e.preventDefault();
-          // 避免在UI未初始化时出错
           if(!this.joystick.center || !this.attackBtn.center) return;
           for(const t of e.changedTouches) {
             const p=this._canvasPos(t.clientX,t.clientY);
@@ -204,7 +201,7 @@
       }
 
       class Renderer {
-        constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; }
+        constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; this.isMobile=isMobile; }
         resize(w,h) { this.w=w; this.h=h; this.scale=Math.min(w/1200, h/500, 1.5); }
         clear() { this.ctx.clearRect(0,0,this.w,this.h); }
         drawMap(laneY) {
@@ -240,10 +237,18 @@
         drawProjectile(proj) { const ctx=this.ctx; ctx.strokeStyle=proj.color; ctx.lineWidth=3*this.scale; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(proj.startX,proj.startY); ctx.lineTo(proj.x,proj.y); ctx.stroke(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(proj.x,proj.y,3*this.scale,0,Math.PI*2); ctx.fill(); }
         drawParticle(p) { const ctx=this.ctx, alpha=p.life/p.maxLife; ctx.fillStyle=`rgba(${p.color},${alpha})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*this.scale,0,Math.PI*2); ctx.fill(); }
         drawJoystick(cx,cy,baseR,knobR,kx,ky,active) { const ctx=this.ctx; ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,baseR,0,Math.PI*2); ctx.fill(); ctx.stroke(); const g=ctx.createRadialGradient(kx-knobR*0.2,ky-knobR*0.2,knobR*0.1,kx,ky,knobR); g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(1,'rgba(200,200,220,0.6)'); ctx.fillStyle=g; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(kx,ky,knobR,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
-        drawAtkBtn(cx,cy,r,pressed,cooldownProgress) { const ctx=this.ctx, alpha=pressed?0.8:0.5; ctx.fillStyle=`rgba(255,80,60,${alpha})`; ctx.strokeStyle='rgba(255,200,180,0.8)'; ctx.lineWidth=2.5*this.scale; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); if(cooldownProgress>0) { ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*cooldownProgress,false); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill(); } ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚔️',cx,cy); }
+        drawAtkBtn(cx,cy,r,pressed) { const ctx=this.ctx, alpha=pressed?0.8:0.5; ctx.fillStyle=`rgba(255,80,60,${alpha})`; ctx.strokeStyle='rgba(255,200,180,0.8)'; ctx.lineWidth=2.5*this.scale; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚔️',cx,cy); }
         drawSkillBtn(cx,cy,r,pressed,cooldownProgress) { const ctx=this.ctx, alpha=pressed?0.8:0.5; ctx.fillStyle=`rgba(80,160,255,${alpha})`; ctx.strokeStyle='rgba(200,220,255,0.8)'; ctx.lineWidth=2.5*this.scale; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); if(cooldownProgress>0) { ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*cooldownProgress,false); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill(); } ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('💨',cx,cy); }
-        drawTopUI(blueTowers, redTowers, hero) { const ctx=this.ctx, w=this.w, y=8*this.scale, icon=10*this.scale, gap=6*this.scale; ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,w,32*this.scale); ctx.fillStyle='#4488ff'; ctx.font=`${11*this.scale}px sans-serif`; ctx.textAlign='left'; ctx.fillText('蓝塔',20*this.scale, y+18*this.scale); for(let i=0;i<2;i++) { const tx=55*this.scale+i*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=blueTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(tx,ty,icon,icon); } ctx.fillStyle='#ff4444'; ctx.textAlign='right'; ctx.fillText('红塔',w-20*this.scale, y+18*this.scale); for(let i=0;i<2;i++) { const tx=w-55*this.scale-(i+1)*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=redTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.strokeRect(tx,ty,icon,icon); } if(hero) { ctx.fillStyle='#ffd700'; ctx.font=`bold ${10*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(`💎${hero.crystal}`, w/2, y+20*this.scale); } }
-        drawPauseBtn(rect) { const ctx=this.ctx; ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(rect.x,rect.y,rect.w,rect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${rect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⏸️',rect.x+rect.w/2,rect.y+rect.h/2); }
+        drawTopUI(blueTowers, redTowers, hero, muteState) {
+          const ctx=this.ctx, w=this.w, y=8*this.scale, icon=10*this.scale, gap=6*this.scale;
+          ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,w,32*this.scale);
+          ctx.fillStyle='#4488ff'; ctx.font=`${11*this.scale}px sans-serif`; ctx.textAlign='left';
+          ctx.fillText('蓝塔',20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++) { const tx=55*this.scale+i*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=blueTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(tx,ty,icon,icon); }
+          ctx.fillStyle='#ff4444'; ctx.textAlign='right'; ctx.fillText('红塔',w-20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++) { const tx=w-55*this.scale-(i+1)*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=redTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.strokeRect(tx,ty,icon,icon); }
+          if(hero) { ctx.fillStyle='#ffd700'; ctx.font=`bold ${10*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(`💎${hero.crystal}`, w/2, y+20*this.scale); }
+        }
         drawMenu(title, options, selected) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); ctx.fillStyle='#fff'; ctx.font=`bold ${28*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(title,w/2,h*0.3); options.forEach((opt,i)=>{ const y=h*0.45+i*50*this.scale; ctx.fillStyle=i===selected?'#ffd700':'#ccc'; ctx.font=`${18*this.scale}px sans-serif`; ctx.fillText(opt,w/2,y); }); }
         drawGameOver(win, stats) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); const pw=Math.min(320*this.scale,w*0.7), ph=Math.min(240*this.scale,h*0.6), px=w/2-pw/2, py=h/2-ph/2; ctx.fillStyle='rgba(30,30,50,0.95)'; ctx.strokeStyle=win?'#ffd700':'#ff4444'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke(); ctx.fillStyle=win?'#ffd700':'#ff4444'; ctx.font=`bold ${22*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(win?'胜利！':'失败！',w/2,py+ph*0.25); ctx.fillStyle='#fff'; ctx.font=`${12*this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`,w/2,py+ph*0.45); const btnW=120*this.scale, btnH=36*this.scale, btnX=w/2-btnW/2, btnY=py+ph*0.65; ctx.fillStyle='#4488ff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(btnX,btnY,btnW,btnH,8); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${14*this.scale}px sans-serif`; ctx.fillText('重新开始',w/2,btnY+btnH/2); return {x:btnX, y:btnY, w:btnW, h:btnH}; }
       }
@@ -268,6 +273,7 @@
           this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
           this.hero.updateCooldown(dt); this.hero.updateRespawn(dt); this.hero.updateBoost(dt);
           this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown-dt);
+          // 技能冲刺
           if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
             this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
             const dir = this.hero.facingRight?1:-1;
@@ -276,7 +282,21 @@
             this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
             audio.play(300,0.15,'square',0.15);
           }
-          if(this.hero.alive && this.hero.canAttack()) { const enemies=this.getRedUnits(); let best=null,bestD=Infinity; for(const e of enemies) { const d=this.hero.distanceTo(e); if(d<=this.hero.range&&d<bestD){ best=e; bestD=d; } } if(best) this.unitAttack(this.hero,best,audio); }
+          // 手动攻击：按攻击键立即尝试攻击最近敌人
+          if(this.hero.alive && input.isAttack()) {
+            if(this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
+            const enemies = this.getRedUnits();
+            let closest = null, closestDist = Infinity;
+            for(const e of enemies) { const d = this.hero.distanceTo(e); if(d <= this.hero.range && d < closestDist) { closest = e; closestDist = d; } }
+            if(closest) this.unitAttack(this.hero, closest, audio);
+          }
+          // 自动攻击
+          if(this.hero.alive && this.hero.canAttack()) {
+            const enemies = this.getRedUnits();
+            let best=null,bestD=Infinity;
+            for(const e of enemies) { const d=this.hero.distanceTo(e); if(d<=this.hero.range&&d<bestD){ best=e; bestD=d; } }
+            if(best) this.unitAttack(this.hero,best,audio);
+          }
           const blueEnemies=this.getRedUnits(), redEnemies=this.getBlueUnits();
           for(const m of this.blueMinions) { m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio); }
           for(const m of this.redMinions) { m.updateCooldown(dt); m.findTarget(redEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio); }
@@ -297,7 +317,8 @@
       class Game {
         constructor() {
           this.canvas=document.getElementById('gameCanvas'); this.ctx=this.canvas.getContext('2d'); this.audio=new AudioManager(); this.input=new InputHandler(this.canvas); this.renderer=new Renderer(this.canvas,this.ctx);
-          this.state='menu'; this.logic=null; this.difficulty='normal'; this.menuSelection=0; this.lastTime=0; this.raf=null; this.pauseRect=null; this.restartRect=null; this.muteRect=null; this.guideTimer=0;
+          this.state='menu'; this.logic=null; this.difficulty='normal'; this.menuSelection=0; this.lastTime=0; this.raf=null;
+          this.returnRect=null; this.pauseRect=null; this.restartRect=null; this.muteRect=null; this.guideTimer=0;
           this._bindEvents(); this._checkOrientation(); this._resize();
         }
         _bindEvents() {
@@ -321,16 +342,21 @@
         }
         _updateUI() {
           const w=this.canvas.width, h=this.canvas.height, s=this.renderer.scale;
-          const joyR=CONFIG.JOYSTICK_BASE*s*10, knobR=CONFIG.JOYSTICK_KNOB*s*10; const joyX=CONFIG.JOY_MARGIN*w+joyR, joyY=h-CONFIG.JOY_MARGIN*h-joyR;
-          this.input.joystick.center={x:joyX,y:joyY}; this.input.joystick.baseRadius=joyR; this.input.joystick.knobRadius=knobR;
-          const atkR=CONFIG.ATK_BTN*s*10, atkX=w-CONFIG.ATK_MARGIN*w-atkR, atkY=h-CONFIG.ATK_MARGIN*h-atkR;
-          this.input.attackBtn.center={x:atkX,y:atkY}; this.input.attackBtn.radius=atkR;
-          const skillR=atkR*0.9, skillX=atkX-skillR*2.5, skillY=atkY;
-          this.input.skillBtn.center={x:skillX,y:skillY}; this.input.skillBtn.radius=skillR;
+          // 移动端虚拟控件
+          if(isMobile) {
+            const joyR=CONFIG.JOYSTICK_BASE*s*10, knobR=CONFIG.JOYSTICK_KNOB*s*10; const joyX=CONFIG.JOY_MARGIN*w+joyR, joyY=h-CONFIG.JOY_MARGIN*h-joyR;
+            this.input.joystick.center={x:joyX,y:joyY}; this.input.joystick.baseRadius=joyR; this.input.joystick.knobRadius=knobR;
+            const atkR=CONFIG.ATK_BTN*s*10, atkX=w-CONFIG.ATK_MARGIN*w-atkR, atkY=h-CONFIG.ATK_MARGIN*h-atkR;
+            this.input.attackBtn.center={x:atkX,y:atkY}; this.input.attackBtn.radius=atkR;
+            const skillR=atkR*0.9, skillX=atkX-skillR*2.5, skillY=atkY;
+            this.input.skillBtn.center={x:skillX,y:skillY}; this.input.skillBtn.radius=skillR;
+          }
+          // 顶部按钮
+          this.returnRect = {x:5*s, y:35*s, w:35*s, h:30*s};
+          this.restartRect = {x:45*s, y:35*s, w:35*s, h:30*s};
           const muteSize=30*s;
-          this.restartRect={x:20*s, y:35*s, w:40*s, h:30*s};
-          this.muteRect={x:w/2-20*s, y:35*s, w:muteSize, h:muteSize};
-          this.pauseRect={x:w-60*s, y:35*s, w:40*s, h:30*s};
+          this.muteRect = {x:w/2-15*s, y:35*s, w:muteSize, h:muteSize};
+          this.pauseRect = {x:w-45*s, y:35*s, w:35*s, h:30*s};
         }
         _startGame() { this.state='playing'; this.guideTimer=3; this.logic=new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty); this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED); this.audio.init(); }
         _restart() { this._startGame(); }
@@ -353,21 +379,31 @@
           if(this.logic.hero.alive) r.drawUnitCircle(this.logic.hero,12*r.scale,true);
           else if(this.logic.hero.respawnTimer>0) { ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font=`bold ${16*r.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(`复活:${Math.ceil(this.logic.hero.respawnTimer)}秒`, this.logic.hero.spawnX, this.logic.hero.spawnY-30*r.scale); }
           for(const p of this.logic.particles) r.drawParticle(p);
+          // 操作提示（根据设备）
           if(this.guideTimer>0) {
-            const text = '左摇杆移动 | 右按钮攻击 | 💨技能冲刺 | 击杀小兵攒💎强化攻击';
+            const text = isMobile ? '左摇杆移动 | 右按钮攻击 | 💨技能冲刺' : 'WASD移动 | 空格攻击 | E冲刺';
             ctx.font = `bold ${14*r.scale}px sans-serif`;
             const textWidth = ctx.measureText(text).width;
             if (textWidth > this.canvas.width - 20) { ctx.font = `bold ${Math.max(10, 14*r.scale * (this.canvas.width-20) / textWidth)}px sans-serif`; }
             ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,this.canvas.width,40*r.scale); ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(text, this.canvas.width/2, 25*r.scale);
           }
-          const ih=this.input;
-          if(ih.joystick.center) { const kx=ih.joystick.active?ih.joystick.rawX:ih.joystick.center.x, ky=ih.joystick.active?ih.joystick.rawY:ih.joystick.center.y; r.drawJoystick(ih.joystick.center.x,ih.joystick.center.y,ih.joystick.baseRadius,ih.joystick.knobRadius,kx,ky,ih.joystick.active); }
-          if(ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x,ih.attackBtn.center.y,ih.attackBtn.radius,ih.attackBtn.pressed,0);
-          if(ih.skillBtn.center) { const cd=this.logic.hero.skillCooldown/CONFIG.SKILL_COOLDOWN; r.drawSkillBtn(ih.skillBtn.center.x,ih.skillBtn.center.y,ih.skillBtn.radius,ih.skillBtn.pressed,cd); }
+          // 移动端虚拟摇杆和按钮
+          if(isMobile) {
+            const ih=this.input;
+            if(ih.joystick.center) { const kx=ih.joystick.active?ih.joystick.rawX:ih.joystick.center.x, ky=ih.joystick.active?ih.joystick.rawY:ih.joystick.center.y; r.drawJoystick(ih.joystick.center.x,ih.joystick.center.y,ih.joystick.baseRadius,ih.joystick.knobRadius,kx,ky,ih.joystick.active); }
+            if(ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x,ih.attackBtn.center.y,ih.attackBtn.radius,ih.attackBtn.pressed);
+            if(ih.skillBtn.center) { const cd=this.logic.hero.skillCooldown/CONFIG.SKILL_COOLDOWN; r.drawSkillBtn(ih.skillBtn.center.x,ih.skillBtn.center.y,ih.skillBtn.radius,ih.skillBtn.pressed,cd); }
+          }
+          // 顶部UI及按钮
           r.drawTopUI(this.logic.blueTowers, this.logic.redTowers, this.logic.hero);
+          // 返回按钮
+          if(this.returnRect) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.returnRect.x,this.returnRect.y,this.returnRect.w,this.returnRect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${this.returnRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🏠',this.returnRect.x+this.returnRect.w/2,this.returnRect.y+this.returnRect.h/2); }
+          // 重启按钮
           if(this.restartRect) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.restartRect.x,this.restartRect.y,this.restartRect.w,this.restartRect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${this.restartRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔄',this.restartRect.x+this.restartRect.w/2,this.restartRect.y+this.restartRect.h/2); }
-          if(this.pauseRect) r.drawPauseBtn(this.pauseRect);
-          if(this.muteRect) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.muteRect.x,this.muteRect.y,this.muteRect.w,this.muteRect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${this.muteRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔊',this.muteRect.x+this.muteRect.w/2,this.muteRect.y+this.muteRect.h/2); }
+          // 暂停按钮
+          if(this.pauseRect) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.pauseRect.x,this.pauseRect.y,this.pauseRect.w,this.pauseRect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${this.pauseRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(this.state==='paused'?'▶️':'⏸️',this.pauseRect.x+this.pauseRect.w/2,this.pauseRect.y+this.pauseRect.h/2); }
+          // 音量按钮
+          if(this.muteRect) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.muteRect.x,this.muteRect.y,this.muteRect.w,this.muteRect.h,6); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${this.muteRect.h*0.7}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(this.audio.muted?'🔇':'🔊',this.muteRect.x+this.muteRect.w/2,this.muteRect.y+this.muteRect.h/2); }
           if(this.state==='over') { const stats={kills:this.logic.hero.kills, towers:this.logic.hero.towersDestroyed, time:Math.floor(this.logic.time)}; this.restartBtnRect = r.drawGameOver(this.logic.victory, stats); }
         }
         start() { if(this.raf) cancelAnimationFrame(this.raf); this.lastTime=performance.now(); this.raf=requestAnimationFrame(t=>this.run(t)); }
@@ -375,13 +411,12 @@
 
       const game = new Game();
 
-      // 统一处理画布点击/触摸（移动端兼容）
       function handleCanvasClick(pos) {
         if(game.state==='menu') {
           const yOff = game.canvas.height*0.45;
           for(let i=0;i<3;i++) {
             const y = yOff + i*50*game.renderer.scale;
-            if(pos.y>y-20 && pos.y<y+20) { // 扩大点击热区
+            if(pos.y>y-20 && pos.y<y+20) {
               game.menuSelection=i;
               game.difficulty=['easy','normal','hard'][i];
               game._startGame();
@@ -390,20 +425,18 @@
           }
         }
         else if(game.state==='over' && game.restartBtnRect && game.input._inRect(pos.x,pos.y,game.restartBtnRect)) { game._restart(); }
+        else if(game.returnRect && game.input._inRect(pos.x,pos.y,game.returnRect)) { game.state='menu'; game.logic=null; }
         else if(game.pauseRect && game.input._inRect(pos.x,pos.y,game.pauseRect)) { if(game.state==='playing') game.state='paused'; else if(game.state==='paused') game.state='playing'; }
         else if(game.restartRect && game.state==='playing' && game.input._inRect(pos.x,pos.y,game.restartRect)) { game._restart(); }
         else if(game.muteRect && game.input._inRect(pos.x,pos.y,game.muteRect)) { game.audio.toggle(); }
       }
 
-      // PC鼠标点击
       game.canvas.addEventListener('click', (e) => {
         const pos = game.input._canvasPos(e.clientX, e.clientY);
         handleCanvasClick(pos);
       });
-
-      // 移动端触摸（关键修复）
       game.canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // 阻止后续click、页面缩放
+        e.preventDefault();
         const touch = e.changedTouches[0];
         if (!touch) return;
         const pos = game.input._canvasPos(touch.clientX, touch.clientY);
@@ -414,19 +447,13 @@
     })();
     </script>
 
-    <!-- 水印模块 -->
+    <!-- 水印模块（仅保留底部居中一处） -->
     <script>
     (function() {
-      const watermarkText = [ '测试阶段，并非最终效果，严谨盗用', '永久网址：https://kl520love.github.io/KLYOTVXEL//推塔.html', '原作者：谭熙林' ];
-      function createFixedWatermark(position) { const div = document.createElement('div'); div.className = `watermark-fixed ${position}`; div.innerHTML = watermarkText.join('<br>'); document.body.appendChild(div); }
-      function createFloatingWatermark() {
-        const div = document.createElement('div'); div.className = 'watermark-floating'; div.innerHTML = watermarkText.join('<br>'); document.body.appendChild(div);
-        let x = Math.random() * (window.innerWidth - 200), y = Math.random() * (window.innerHeight - 60); let vx = 0.8, vy = 0.6; if (Math.random() < 0.5) vx *= -1; if (Math.random() < 0.5) vy *= -1;
-        function step() { x += vx; y += vy; const maxX = window.innerWidth - div.offsetWidth; const maxY = window.innerHeight - div.offsetHeight; if (x <= 0 || x >= maxX) vx *= -1; if (y <= 0 || y >= maxY) vy *= -1; x = Math.max(0, Math.min(maxX, x)); y = Math.max(0, Math.min(maxY, y)); div.style.left = x + 'px'; div.style.top = y + 'px'; requestAnimationFrame(step); }
-        step();
-      }
-      function initWatermarks() { createFixedWatermark('top-left'); createFixedWatermark('top-right'); createFixedWatermark('bottom-left'); createFixedWatermark('bottom-right'); createFloatingWatermark(); }
-      if (document.readyState === 'complete') initWatermarks(); else window.addEventListener('load', initWatermarks);
+      const div = document.createElement('div');
+      div.className = 'watermark-single';
+      div.innerHTML = '测试阶段，并非最终效果，严谨盗用 | 原作者：谭熙林';
+      document.body.appendChild(div);
     })();
     </script>
 
