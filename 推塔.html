@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-  <title>横版推塔·全平台修复</title>
+  <title>横版推塔·移动端UI版</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -24,7 +24,7 @@
     .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
     @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
 
-    /* 底部水印（仅保留一处） */
+    /* 水印 */
     .watermark-single{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:500;font-size:10px;line-height:1.4;color:rgba(200,200,200,0.25);text-align:center;white-space:nowrap;}
     @media(max-width:600px){.watermark-single{font-size:8px;}}
   </style>
@@ -58,10 +58,12 @@
         DIFFICULTY: { easy: { hpMul:0.7, atkMul:0.7 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:1.4, atkMul:1.3 } },
         SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
         CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
+        // 摇杆和按钮尺寸（相对于Canvas高度比例，移动端）
         JOYSTICK_BASE: 0.1, JOYSTICK_KNOB: 0.045, ATK_BTN: 0.07, JOY_MARGIN: 0.1, ATK_MARGIN: 0.1
       };
 
-      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 800;
+      // 触屏设备检测（支持模拟）
+      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 800;
 
       class AudioManager {
         constructor() { this.ctx = null; this.muted = false; this.ready = false; }
@@ -288,10 +290,41 @@
         }
         drawProjectile(proj) { const ctx = this.ctx; ctx.strokeStyle = proj.color; ctx.lineWidth = 3 * this.scale; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(proj.startX, proj.startY); ctx.lineTo(proj.x, proj.y); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(proj.x, proj.y, 3 * this.scale, 0, Math.PI * 2); ctx.fill(); }
         drawParticle(p) { const ctx = this.ctx, alpha = p.life / p.maxLife; ctx.fillStyle = `rgba(${p.color},${alpha})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * this.scale, 0, Math.PI * 2); ctx.fill(); }
-        drawJoystick(cx, cy, baseR, knobR, kx, ky, active) { const ctx = this.ctx; ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); const g = ctx.createRadialGradient(kx - knobR * 0.2, ky - knobR * 0.2, knobR * 0.1, kx, ky, knobR); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(200,200,220,0.7)'); ctx.fillStyle = g; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(kx, ky, knobR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-        drawAtkBtn(cx, cy, r, pressed) { const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6; ctx.fillStyle = `rgba(255,80,60,${alpha})`; ctx.strokeStyle = 'rgba(255,200,180,0.9)'; ctx.lineWidth = 2.5 * this.scale; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚔️', cx, cy); }
-        drawSkillBtn(cx, cy, r, pressed, cooldownProgress) { const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6; ctx.fillStyle = `rgba(80,160,255,${alpha})`; ctx.strokeStyle = 'rgba(200,220,255,0.9)'; ctx.lineWidth = 2.5 * this.scale; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); if (cooldownProgress > 0) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cooldownProgress, false); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill(); } ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💨', cx, cy); }
-        drawTopUI(blueTowers, redTowers, hero, muted) {
+
+        // 绘制虚拟摇杆（移动端左下角）
+        drawJoystick(cx, cy, baseR, knobR, kx, ky, active) {
+          const ctx = this.ctx;
+          ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2 * this.scale;
+          ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          const g = ctx.createRadialGradient(kx - knobR * 0.2, ky - knobR * 0.2, knobR * 0.1, kx, ky, knobR);
+          g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(200,200,220,0.7)');
+          ctx.fillStyle = g; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * this.scale;
+          ctx.beginPath(); ctx.arc(kx, ky, knobR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+
+        // 绘制攻击按钮（移动端右下角）
+        drawAtkBtn(cx, cy, r, pressed) {
+          const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6;
+          ctx.fillStyle = `rgba(255,80,60,${alpha})`; ctx.strokeStyle = 'rgba(255,200,180,0.9)'; ctx.lineWidth = 2.5 * this.scale;
+          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('⚔️', cx, cy);
+        }
+
+        // 绘制冲刺按钮（移动端右下角，位于攻击按钮下方）
+        drawSkillBtn(cx, cy, r, pressed, cooldownProgress) {
+          const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6;
+          ctx.fillStyle = `rgba(80,160,255,${alpha})`; ctx.strokeStyle = 'rgba(200,220,255,0.9)'; ctx.lineWidth = 2.5 * this.scale;
+          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          if (cooldownProgress > 0) {
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cooldownProgress, false); ctx.closePath();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+          }
+          ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('💨', cx, cy);
+        }
+
+        drawTopUI(blueTowers, redTowers, hero) {
           const ctx = this.ctx, w = this.w, y = 8 * this.scale, icon = 10 * this.scale, gap = 6 * this.scale;
           ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, w, 32 * this.scale);
           ctx.fillStyle = '#4488ff'; ctx.font = `${11 * this.scale}px sans-serif`; ctx.textAlign = 'left'; ctx.fillText('蓝塔', 20 * this.scale, y + 18 * this.scale);
@@ -300,6 +333,7 @@
           for (let i = 0; i < 2; i++) { const tx = w - 55 * this.scale - (i + 1) * (icon + gap), ty = y + 8 * this.scale; ctx.fillStyle = redTowers[i].alive ? '#44cc44' : '#555'; ctx.fillRect(tx, ty, icon, icon); ctx.strokeStyle = '#fff'; ctx.strokeRect(tx, ty, icon, icon); }
           if (hero) { ctx.fillStyle = '#ffd700'; ctx.font = `bold ${10 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`💎${hero.crystal}`, w / 2, y + 20 * this.scale); }
         }
+
         drawMenu(title, options, selected) { const ctx = this.ctx, w = this.w, h = this.h; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#fff'; ctx.font = `bold ${28 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(title, w / 2, h * 0.3); options.forEach((opt, i) => { const y = h * 0.45 + i * 50 * this.scale; ctx.fillStyle = i === selected ? '#ffd700' : '#ccc'; ctx.font = `${18 * this.scale}px sans-serif`; ctx.fillText(opt, w / 2, y); }); }
         drawGameOver(win, stats) { const ctx = this.ctx, w = this.w, h = this.h; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, w, h); const pw = Math.min(320 * this.scale, w * 0.7), ph = Math.min(240 * this.scale, h * 0.6), px = w / 2 - pw / 2, py = h / 2 - ph / 2; ctx.fillStyle = 'rgba(30,30,50,0.95)'; ctx.strokeStyle = win ? '#ffd700' : '#ff4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke(); ctx.fillStyle = win ? '#ffd700' : '#ff4444'; ctx.font = `bold ${22 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(win ? '胜利！' : '失败！', w / 2, py + ph * 0.25); ctx.fillStyle = '#fff'; ctx.font = `${12 * this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`, w / 2, py + ph * 0.45); const btnW = 120 * this.scale, btnH = 36 * this.scale, btnX = w / 2 - btnW / 2, btnY = py + ph * 0.65; ctx.fillStyle = '#4488ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `bold ${14 * this.scale}px sans-serif`; ctx.fillText('重新开始', w / 2, btnY + btnH / 2); return { x: btnX, y: btnY, w: btnW, h: btnH }; }
       }
@@ -388,15 +422,27 @@
         }
         _updateUI() {
           const w = this.canvas.width, h = this.canvas.height, s = this.renderer.scale;
+          // 移动端触控控件（仅在触屏设备上设置）
           if (isMobile) {
             const joyR = CONFIG.JOYSTICK_BASE * h, knobR = CONFIG.JOYSTICK_KNOB * h;
             const joyX = CONFIG.JOY_MARGIN * w + joyR, joyY = h - CONFIG.JOY_MARGIN * h - joyR;
             this.input.joystick.center = { x: joyX, y: joyY }; this.input.joystick.baseRadius = joyR; this.input.joystick.knobRadius = knobR;
-            const atkR = CONFIG.ATK_BTN * h, atkX = w - CONFIG.ATK_MARGIN * w - atkR, atkY = h - CONFIG.ATK_MARGIN * h - atkR;
-            this.input.attackBtn.center = { x: atkX, y: atkY }; this.input.attackBtn.radius = atkR;
-            const skillR = atkR * 0.9, skillX = atkX - skillR * 2.5, skillY = atkY;
-            this.input.skillBtn.center = { x: skillX, y: skillY }; this.input.skillBtn.radius = skillR;
+            // 攻击按钮和冲刺按钮垂直排列，均不小于48px
+            const minBtnSize = Math.max(48, CONFIG.ATK_BTN * h * 1.2); // 保证至少48px
+            const btnGap = 12;
+            const atkR = minBtnSize / 2, skillR = minBtnSize / 2;
+            const totalHeight = atkR * 2 + skillR * 2 + btnGap;
+            const startY = h - CONFIG.ATK_MARGIN * h - totalHeight / 2;
+            const atkCY = startY + atkR;
+            const skillCY = atkCY + atkR + btnGap + skillR;
+            const centerX = w - CONFIG.ATK_MARGIN * w - atkR;
+            this.input.attackBtn.center = { x: centerX, y: atkCY }; this.input.attackBtn.radius = atkR;
+            this.input.skillBtn.center = { x: centerX, y: skillCY }; this.input.skillBtn.radius = skillR;
+          } else {
+            // PC端不显示虚拟控件
+            this.input.joystick.center = { x: 0, y: 0 }; this.input.attackBtn.center = { x: 0, y: 0 }; this.input.skillBtn.center = { x: 0, y: 0 };
           }
+          // 顶部按钮
           this.returnRect = { x: 5 * s, y: 35 * s, w: 35 * s, h: 30 * s };
           this.restartRect = { x: 45 * s, y: 35 * s, w: 35 * s, h: 30 * s };
           const muteSize = 30 * s;
@@ -424,20 +470,29 @@
           if (this.logic.hero.alive) r.drawUnitCircle(this.logic.hero, 12 * r.scale, true);
           else if (this.logic.hero.respawnTimer > 0) { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = `bold ${16 * r.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`复活:${Math.ceil(this.logic.hero.respawnTimer)}秒`, this.logic.hero.spawnX, this.logic.hero.spawnY - 30 * r.scale); }
           for (const p of this.logic.particles) r.drawParticle(p);
+          // 操作说明（自适应设备）
           if (this.guideTimer > 0) {
-            const text = isMobile ? '左摇杆移动 | 右按钮攻击 | 💨冲刺' : 'WASD 移动 | 空格 攻击 | E 冲刺';
+            const text = isMobile ? '左侧摇杆移动 | 右侧按钮攻击/冲刺' : 'WASD 移动 | 空格 攻击 | E 冲刺';
             ctx.font = `bold ${14 * r.scale}px sans-serif`;
             const textWidth = ctx.measureText(text).width;
             if (textWidth > this.canvas.width - 20) { ctx.font = `bold ${Math.max(10, 14 * r.scale * (this.canvas.width - 20) / textWidth)}px sans-serif`; }
             ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, this.canvas.width, 40 * r.scale); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(text, this.canvas.width / 2, 25 * r.scale);
           }
+          // 移动端虚拟控件绘制
           if (isMobile) {
             const ih = this.input;
-            if (ih.joystick.center) { const kx = ih.joystick.active ? ih.joystick.rawX : ih.joystick.center.x, ky = ih.joystick.active ? ih.joystick.rawY : ih.joystick.center.y; r.drawJoystick(ih.joystick.center.x, ih.joystick.center.y, ih.joystick.baseRadius, ih.joystick.knobRadius, kx, ky, ih.joystick.active); }
+            if (ih.joystick.center && ih.joystick.baseRadius > 0) {
+              const kx = ih.joystick.active ? ih.joystick.rawX : ih.joystick.center.x;
+              const ky = ih.joystick.active ? ih.joystick.rawY : ih.joystick.center.y;
+              r.drawJoystick(ih.joystick.center.x, ih.joystick.center.y, ih.joystick.baseRadius, ih.joystick.knobRadius, kx, ky, ih.joystick.active);
+            }
             if (ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x, ih.attackBtn.center.y, ih.attackBtn.radius, ih.attackBtn.pressed);
-            if (ih.skillBtn.center) { const cd = this.logic.hero.skillCooldown / CONFIG.SKILL_COOLDOWN; r.drawSkillBtn(ih.skillBtn.center.x, ih.skillBtn.center.y, ih.skillBtn.radius, ih.skillBtn.pressed, cd); }
+            if (ih.skillBtn.center) {
+              const cd = this.logic.hero.skillCooldown / CONFIG.SKILL_COOLDOWN;
+              r.drawSkillBtn(ih.skillBtn.center.x, ih.skillBtn.center.y, ih.skillBtn.radius, ih.skillBtn.pressed, cd);
+            }
           }
-          r.drawTopUI(this.logic.blueTowers, this.logic.redTowers, this.logic.hero, this.audio.muted);
+          r.drawTopUI(this.logic.blueTowers, this.logic.redTowers, this.logic.hero);
           if (this.returnRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.returnRect.x, this.returnRect.y, this.returnRect.w, this.returnRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.returnRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏠', this.returnRect.x + this.returnRect.w / 2, this.returnRect.y + this.returnRect.h / 2); }
           if (this.restartRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.restartRect.x, this.restartRect.y, this.restartRect.w, this.restartRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.restartRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🔄', this.restartRect.x + this.restartRect.w / 2, this.restartRect.y + this.restartRect.h / 2); }
           if (this.pauseRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.pauseRect.x, this.pauseRect.y, this.pauseRect.w, this.pauseRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.pauseRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.state === 'paused' ? '▶️' : '⏸️', this.pauseRect.x + this.pauseRect.w / 2, this.pauseRect.y + this.pauseRect.h / 2); }
