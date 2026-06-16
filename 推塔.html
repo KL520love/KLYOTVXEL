@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-  <title>横版推塔·移动端UI版</title>
+  <title>横版推塔·账号验证版</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -14,37 +14,59 @@
     @keyframes rot{0%,100%{transform:rotate(0deg)}25%,50%{transform:rotate(90deg)}}
     #rotateHint p{color:#fff;font-size:18px;}
 
+    /* 授权验证界面 – 双输入框 */
     #auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a1a;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
     .auth-container{width:90%;max-width:400px;padding:30px 20px;background:rgba(20,20,50,0.9);border:1px solid rgba(255,255,255,0.15);border-radius:16px;text-align:center;backdrop-filter:blur(10px);}
     .auth-title{color:#fff;font-size:22px;font-weight:bold;margin-bottom:25px;letter-spacing:2px;}
-    .auth-input{width:100%;padding:12px 15px;font-size:16px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(0,0,0,0.4);color:#fff;outline:none;margin-bottom:20px;text-transform:uppercase;}
-    .auth-input::placeholder{color:rgba(255,255,255,0.4);text-transform:none;}
+    .auth-input{width:100%;padding:12px 15px;font-size:16px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(0,0,0,0.4);color:#fff;outline:none;margin-bottom:15px;}
+    .auth-input::placeholder{color:rgba(255,255,255,0.4);}
     .auth-btn{width:100%;padding:12px 0;font-size:18px;font-weight:bold;color:#fff;background:#3366cc;border:none;border-radius:8px;cursor:pointer;transition:background 0.2s;}
     .auth-btn:active{background:#1a3a7a;}
     .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
     @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
 
-    /* 水印 */
-    .watermark-single{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:500;font-size:10px;line-height:1.4;color:rgba(200,200,200,0.25);text-align:center;white-space:nowrap;}
-    @media(max-width:600px){.watermark-single{font-size:8px;}}
+    /* 动态漂浮水印 */
+    .floating-watermark {
+      position: fixed;
+      pointer-events: none;
+      z-index: 500;
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(180,180,180,0.25);
+      text-align: center;
+      white-space: nowrap;
+      will-change: left, top;
+    }
+    @media(max-width:600px){.floating-watermark{font-size:10px;}}
   </style>
 </head>
 <body>
   <div id="rotateHint"><div class="icon">📱</div><p>请横屏游玩</p></div>
   <canvas id="gameCanvas"></canvas>
 
+  <!-- 账号密码验证界面 -->
   <div id="auth-overlay">
     <div class="auth-container">
       <div class="auth-title">游戏授权验证</div>
-      <input type="text" id="auth-input" class="auth-input" placeholder="请输入授权码" maxlength="20" autocomplete="off">
+      <input type="text" id="auth-account" class="auth-input" placeholder="请输入账号" maxlength="20" autocomplete="off">
+      <input type="password" id="auth-password" class="auth-input" placeholder="请输入密码" maxlength="20" autocomplete="off">
       <button id="auth-btn" class="auth-btn">确认进入</button>
       <div id="auth-error" class="auth-error"></div>
     </div>
   </div>
 
-  <!-- ★ 授权码配置区 ★ -->
+  <!-- 账号密码配置区（直接修改） -->
   <script>
-    const VALID_CODES = [ 'TXL001', 'TXL002', 'TXL003', 'TXL004', 'TXL005' ];
+    // ★★★ 账号-密码映射表 ★★★
+    // 格式：账号（不区分大小写） -> 密码（区分大小写）
+    const ACCOUNT_PASSWORDS = {
+      'TXL001': '001',
+      'TXL002': '002',
+      'TXL003': '003',
+      'TXL004': '004',
+      'TXL005': '005'
+      // 可继续添加，例如 'NEWACC': 'newpass'
+    };
   </script>
 
   <!-- 游戏主逻辑 -->
@@ -55,14 +77,19 @@
         MINION_HP: 200, MINION_ATK: 25, MINION_SPD: 150, MINION_RANGE: 55, MINION_INTERVAL: 5,
         TOWER_HP: 1500, TOWER_ATK: 120, TOWER_RANGE: 160,
         BASE_HP: 3000,
-        DIFFICULTY: { easy: { hpMul:0.7, atkMul:0.7 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:1.4, atkMul:1.3 } },
+        // 难度系数（简单0.5，普通1.0，困难2.0血量/1.8攻击）
+        DIFFICULTY: {
+          easy: { hpMul:0.5, atkMul:0.5 },
+          normal: { hpMul:1, atkMul:1 },
+          hard: { hpMul:2.0, atkMul:1.8 }
+        },
         SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
         CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
-        // 摇杆和按钮尺寸（相对于Canvas高度比例，移动端）
-        JOYSTICK_BASE: 0.1, JOYSTICK_KNOB: 0.045, ATK_BTN: 0.07, JOY_MARGIN: 0.1, ATK_MARGIN: 0.1
+        JOYSTICK_BASE: 0.1, JOYSTICK_KNOB: 0.045, ATK_BTN: 0.07, JOY_MARGIN: 0.1, ATK_MARGIN: 0.1,
+        // 敌方小兵/防御塔对英雄伤害倍率
+        ENEMY_DAMAGE_TO_HERO_MUL: 2.5
       };
 
-      // 触屏设备检测（支持模拟）
       const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 800;
 
       class AudioManager {
@@ -109,16 +136,9 @@
           this.moveSpeed=CONFIG.HERO_SPD; this.isPlayer=isPlayer; this.vx=0; this.vy=0; this.spawnX=x; this.spawnY=y;
           this.respawnTimer=0; this.crystal=0; this.boostTimer=0; this.boostActive=false; this.kills=0; this.towersDestroyed=0;
         }
-        setMovement(vx,vy) {
-          const mag = Math.sqrt(vx*vx+vy*vy); if(mag>1){ vx/=mag; vy/=mag; }
-          this.vx = vx * this.moveSpeed; this.vy = vy * this.moveSpeed;
-          if(vx!==0) this.facingRight = vx>0;
-        }
+        setMovement(vx,vy) { const mag = Math.sqrt(vx*vx+vy*vy); if(mag>1){ vx/=mag; vy/=mag; } this.vx = vx * this.moveSpeed; this.vy = vy * this.moveSpeed; if(vx!==0) this.facingRight = vx>0; }
         stopMovement(){ this.vx=0; this.vy=0; }
-        updatePosition(dt, minX,maxX,minY,maxY) {
-          if(!this.alive) return; this.x += this.vx * dt; this.y += this.vy * dt;
-          this.x = Math.max(minX, Math.min(maxX, this.x)); this.y = Math.max(minY, Math.min(maxY, this.y));
-        }
+        updatePosition(dt, minX,maxX,minY,maxY) { if(!this.alive) return; this.x += this.vx * dt; this.y += this.vy * dt; this.x = Math.max(minX, Math.min(maxX, this.x)); this.y = Math.max(minY, Math.min(maxY, this.y)); }
         respawn() { this.alive=true; this.hp=this.maxHp; this.displayHp=this.maxHp; this.x=this.spawnX; this.y=this.spawnY; this.respawnTimer=0; this.atkCooldown=0; this.flashTimer=0; this.vx=0; this.vy=0; }
         onDeath() { if(this.isPlayer) this.respawnTimer=CONFIG.HERO_RESPAWN; this.stopMovement(); }
         updateRespawn(dt) { if(!this.alive && this.respawnTimer>0) { this.respawnTimer-=dt; if(this.respawnTimer<=0) this.respawn(); } }
@@ -147,7 +167,11 @@
       }
 
       class Projectile {
-        constructor(fromX,fromY,toX,toY,color,dmg,target) { this.startX=fromX; this.startY=fromY; this.toX=toX; this.toY=toY; this.x=fromX; this.y=fromY; this.color=color; this.dmg=dmg; this.target=target; this.progress=0; this.duration=0.12; this.elapsed=0; this.done=false; }
+        constructor(fromX,fromY,toX,toY,color,dmg,target,attackerType) {
+          this.startX=fromX; this.startY=fromY; this.toX=toX; this.toY=toY; this.x=fromX; this.y=fromY;
+          this.color=color; this.dmg=dmg; this.target=target; this.attackerType=attackerType; // 记录攻击者类型
+          this.progress=0; this.duration=0.12; this.elapsed=0; this.done=false;
+        }
         update(dt) { if(this.done) return; this.elapsed+=dt; this.progress=Math.min(1, this.elapsed/this.duration); const t=this.progress; this.x = this.startX + (this.toX - this.startX)*t; this.y = this.startY + (this.toY - this.startY)*t; if(this.progress>=1) this.done=true; }
       }
 
@@ -178,219 +202,220 @@
           window.addEventListener('keydown', e => this._keyDown(e));
           window.addEventListener('keyup', e => this._keyUp(e));
         }
-        _canvasPos(clientX, clientY) {
-          const rect = this.canvas.getBoundingClientRect();
-          return {
-            x: (clientX - rect.left) * (this.canvas.width / rect.width),
-            y: (clientY - rect.top) * (this.canvas.height / rect.height)
-          };
-        }
-        _inCircle(px, py, cx, cy, r) { return (px - cx) ** 2 + (py - cy) ** 2 <= r * r; }
-        _inRect(px, py, rect) { return rect && px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h; }
-
+        _canvasPos(clientX, clientY) { const rect = this.canvas.getBoundingClientRect(); return { x:(clientX - rect.left)*(this.canvas.width/rect.width), y:(clientY - rect.top)*(this.canvas.height/rect.height) }; }
+        _inCircle(px, py, cx, cy, r) { return (px-cx)**2+(py-cy)**2 <= r*r; }
+        _inRect(px, py, rect) { return rect && px>=rect.x && px<=rect.x+rect.w && py>=rect.y && py<=rect.y+rect.h; }
         _touchStart(e) {
           e.preventDefault();
-          if (!this.joystick.center || !this.attackBtn.center) return;
-          for (const t of e.changedTouches) {
+          if(!this.joystick.center || !this.attackBtn.center) return;
+          for(const t of e.changedTouches) {
             const p = this._canvasPos(t.clientX, t.clientY);
-            if (!this.joystick.id && this._inCircle(p.x, p.y, this.joystick.center.x, this.joystick.center.y, this.joystick.baseRadius * 1.5)) {
-              this.joystick.id = t.identifier; this.joystick.active = true; this._updateJoystick(p.x, p.y);
-            } else if (!this.attackBtn.id && this._inCircle(p.x, p.y, this.attackBtn.center.x, this.attackBtn.center.y, this.attackBtn.radius * 1.3)) {
-              this.attackBtn.id = t.identifier; this.attackBtn.pressed = true;
-            } else if (!this.skillBtn.id && this._inCircle(p.x, p.y, this.skillBtn.center.x, this.skillBtn.center.y, this.skillBtn.radius * 1.3)) {
-              this.skillBtn.id = t.identifier; this.skillBtn.pressed = true;
-            }
+            if(!this.joystick.id && this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.5)) { this.joystick.id=t.identifier; this.joystick.active=true; this._updateJoystick(p.x,p.y); }
+            else if(!this.attackBtn.id && this._inCircle(p.x,p.y,this.attackBtn.center.x,this.attackBtn.center.y,this.attackBtn.radius*1.3)) { this.attackBtn.id=t.identifier; this.attackBtn.pressed=true; }
+            else if(!this.skillBtn.id && this._inCircle(p.x,p.y,this.skillBtn.center.x,this.skillBtn.center.y,this.skillBtn.radius*1.3)) { this.skillBtn.id=t.identifier; this.skillBtn.pressed=true; }
           }
         }
-        _touchMove(e) {
-          e.preventDefault();
-          for (const t of e.changedTouches) {
-            if (t.identifier === this.joystick.id) {
-              const p = this._canvasPos(t.clientX, t.clientY);
-              this._updateJoystick(p.x, p.y);
-            }
-          }
-        }
-        _touchEnd(e) {
-          e.preventDefault();
-          for (const t of e.changedTouches) {
-            if (t.identifier === this.joystick.id) { this.joystick.id = null; this.joystick.active = false; this.joystick.dx = 0; this.joystick.dy = 0; }
-            if (t.identifier === this.attackBtn.id) { this.attackBtn.id = null; this.attackBtn.pressed = false; }
-            if (t.identifier === this.skillBtn.id) { this.skillBtn.id = null; this.skillBtn.pressed = false; }
-          }
-        }
-        _updateJoystick(px, py) {
-          const cx = this.joystick.center.x, cy = this.joystick.center.y;
-          const maxR = this.joystick.baseRadius - this.joystick.knobRadius;
-          let dx = px - cx, dy = py - cy;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
-          this.joystick.rawX = cx + dx; this.joystick.rawY = cy + dy;
-          this.joystick.dx = dx / maxR; this.joystick.dy = dy / maxR;
-        }
-
-        _mouseDown(e) {
-          if (e.button !== 0) return;
-          const p = this._canvasPos(e.clientX, e.clientY);
-          if (this._inCircle(p.x, p.y, this.joystick.center.x, this.joystick.center.y, this.joystick.baseRadius * 1.5)) { this.joystick.active = true; this.joystick.id = 'mouse'; this._updateJoystick(p.x, p.y); }
-          if (this._inCircle(p.x, p.y, this.attackBtn.center.x, this.attackBtn.center.y, this.attackBtn.radius * 1.3)) this.attackBtn.pressed = true;
-          if (this._inCircle(p.x, p.y, this.skillBtn.center.x, this.skillBtn.center.y, this.skillBtn.radius * 1.3)) this.skillBtn.pressed = true;
-        }
-        _mouseMove(e) { if (this.joystick.id === 'mouse') this._updateJoystick(this._canvasPos(e.clientX, e.clientY).x, this._canvasPos(e.clientX, e.clientY).y); }
-        _mouseUp(e) { this.joystick.id = null; this.joystick.active = false; this.joystick.dx = 0; this.joystick.dy = 0; this.attackBtn.pressed = false; this.skillBtn.pressed = false; }
-        _keyDown(e) { this.keys[e.key] = true; if (e.key === ' ' || e.key === 'Spacebar') { this.keyAttack = true; e.preventDefault(); } if (e.key === 'e' || e.key === 'E') { this.keySkill = true; e.preventDefault(); } if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault(); }
-        _keyUp(e) { this.keys[e.key] = false; if (e.key === ' ' || e.key === 'Spacebar') this.keyAttack = false; if (e.key === 'e' || e.key === 'E') this.keySkill = false; }
-
-        getMovement() {
-          let vx = 0, vy = 0;
-          if (this.joystick.active) { vx = this.joystick.dx; vy = this.joystick.dy; }
-          if (this.keys['w'] || this.keys['ArrowUp']) vy = -1;
-          if (this.keys['s'] || this.keys['ArrowDown']) vy = 1;
-          if (this.keys['a'] || this.keys['ArrowLeft']) vx = -1;
-          if (this.keys['d'] || this.keys['ArrowRight']) vx = 1;
-          return { vx, vy };
-        }
+        _touchMove(e) { e.preventDefault(); for(const t of e.changedTouches) if(t.identifier===this.joystick.id) { const p=this._canvasPos(t.clientX,t.clientY); this._updateJoystick(p.x,p.y); } }
+        _touchEnd(e) { e.preventDefault(); for(const t of e.changedTouches) { if(t.identifier===this.joystick.id){ this.joystick.id=null; this.joystick.active=false; this.joystick.dx=0; this.joystick.dy=0; } if(t.identifier===this.attackBtn.id){ this.attackBtn.id=null; this.attackBtn.pressed=false; } if(t.identifier===this.skillBtn.id){ this.skillBtn.id=null; this.skillBtn.pressed=false; } } }
+        _updateJoystick(px,py) { const cx=this.joystick.center.x, cy=this.joystick.center.y, maxR=this.joystick.baseRadius-this.joystick.knobRadius; let dx=px-cx, dy=py-cy; const dist=Math.sqrt(dx*dx+dy*dy); if(dist>maxR){ dx=dx/dist*maxR; dy=dy/dist*maxR; } this.joystick.rawX=cx+dx; this.joystick.rawY=cy+dy; this.joystick.dx=dx/maxR; this.joystick.dy=dy/maxR; }
+        _mouseDown(e) { if(e.button!==0) return; const p=this._canvasPos(e.clientX,e.clientY); if(this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.5)){ this.joystick.active=true; this.joystick.id='mouse'; this._updateJoystick(p.x,p.y); } if(this._inCircle(p.x,p.y,this.attackBtn.center.x,this.attackBtn.center.y,this.attackBtn.radius*1.3)) this.attackBtn.pressed=true; if(this._inCircle(p.x,p.y,this.skillBtn.center.x,this.skillBtn.center.y,this.skillBtn.radius*1.3)) this.skillBtn.pressed=true; }
+        _mouseMove(e) { if(this.joystick.id==='mouse') this._updateJoystick(this._canvasPos(e.clientX,e.clientY).x, this._canvasPos(e.clientX,e.clientY).y); }
+        _mouseUp(e) { this.joystick.id=null; this.joystick.active=false; this.joystick.dx=0; this.joystick.dy=0; this.attackBtn.pressed=false; this.skillBtn.pressed=false; }
+        _keyDown(e) { this.keys[e.key]=true; if(e.key===' '||e.key==='Spacebar'){ this.keyAttack=true; e.preventDefault(); } if(e.key==='e'||e.key==='E'){ this.keySkill=true; e.preventDefault(); } if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault(); }
+        _keyUp(e) { this.keys[e.key]=false; if(e.key===' '||e.key==='Spacebar') this.keyAttack=false; if(e.key==='e'||e.key==='E') this.keySkill=false; }
+        getMovement() { let vx=0,vy=0; if(this.joystick.active){ vx=this.joystick.dx; vy=this.joystick.dy; } if(this.keys['w']||this.keys['ArrowUp']) vy=-1; if(this.keys['s']||this.keys['ArrowDown']) vy=1; if(this.keys['a']||this.keys['ArrowLeft']) vx=-1; if(this.keys['d']||this.keys['ArrowRight']) vx=1; return {vx,vy}; }
         isAttack() { const v = this.attackBtn.pressed || this.keyAttack; this.keyAttack = false; return v; }
         isSkill() { const v = this.skillBtn.pressed || this.keySkill; this.keySkill = false; return v; }
       }
 
       class Renderer {
-        constructor(canvas, ctx) { this.canvas = canvas; this.ctx = ctx; this.w = 0; this.h = 0; this.scale = 1; }
-        resize(w, h) { this.w = w; this.h = h; this.scale = Math.min(w / 1200, h / 500, 1.5); }
-        clear() { this.ctx.clearRect(0, 0, this.w, this.h); }
+        constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; }
+        resize(w,h) { this.w=w; this.h=h; this.scale=Math.min(w/1200, h/500, 1.5); }
+        clear() { this.ctx.clearRect(0,0,this.w,this.h); }
         drawMap(laneY) {
-          const ctx = this.ctx, w = this.w, h = this.h;
-          const grad = ctx.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, '#1a1a3e'); grad.addColorStop(0.4, '#2d3a6e'); grad.addColorStop(0.6, '#4a6fa5'); grad.addColorStop(1, '#1a2a1a');
-          ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = 'rgba(30,60,140,0.3)'; ctx.fillRect(0, 0, w * 0.5, h); ctx.fillStyle = 'rgba(180,30,30,0.2)'; ctx.fillRect(w * 0.5, 0, w * 0.5, h);
-          const groundY = laneY + 45 * this.scale; ctx.fillStyle = '#3d5a3d'; ctx.fillRect(0, groundY, w, h - groundY); ctx.fillStyle = '#4a7040'; ctx.fillRect(0, groundY, w, 6 * this.scale);
-          ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2 * this.scale; ctx.setLineDash([15 * this.scale, 10 * this.scale]); ctx.beginPath(); ctx.moveTo(30, laneY); ctx.lineTo(w - 30, laneY); ctx.stroke(); ctx.setLineDash([]);
+          const ctx=this.ctx, w=this.w, h=this.h;
+          const grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,'#1a1a3e'); grad.addColorStop(0.4,'#2d3a6e'); grad.addColorStop(0.6,'#4a6fa5'); grad.addColorStop(1,'#1a2a1a');
+          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle='rgba(30,60,140,0.3)'; ctx.fillRect(0,0,w*0.5,h); ctx.fillStyle='rgba(180,30,30,0.2)'; ctx.fillRect(w*0.5,0,w*0.5,h);
+          const groundY=laneY+45*this.scale; ctx.fillStyle='#3d5a3d'; ctx.fillRect(0,groundY,w,h-groundY); ctx.fillStyle='#4a7040'; ctx.fillRect(0,groundY,w,6*this.scale);
+          ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2*this.scale; ctx.setLineDash([15*this.scale,10*this.scale]); ctx.beginPath(); ctx.moveTo(30,laneY); ctx.lineTo(w-30,laneY); ctx.stroke(); ctx.setLineDash([]);
         }
-        drawHpBar(x, y, w, ratio, team) { const ctx = this.ctx, h = 4 * this.scale, bx = x - w / 2, by = y; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx - 1, by - 1, w + 2, h + 2); ctx.fillStyle = '#444'; ctx.fillRect(bx, by, w, h); const hpW = w * ratio, color = ratio > 0.5 ? '#44dd44' : ratio > 0.25 ? '#dddd44' : '#dd4444'; ctx.fillStyle = color; ctx.fillRect(bx, by, hpW, h); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(bx, by, hpW, h * 0.4); }
-        drawUnitCircle(unit, radius, hasArrow = false) {
-          const ctx = this.ctx, x = unit.x, y = unit.y, r = radius, baseColor = unit.team === Team.BLUE ? '#4488ff' : '#ff4444'; let body = baseColor; if (unit.flashTimer > 0) body = '#ff8888';
-          ctx.save(); ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI * 2); const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 1.3); glow.addColorStop(0, unit.team === Team.BLUE ? 'rgba(60,140,255,0.5)' : 'rgba(255,60,60,0.5)'); glow.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glow; ctx.fill(); ctx.restore();
-          ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r); grad.addColorStop(0, '#fff'); grad.addColorStop(0.4, body); grad.addColorStop(1, unit.team === Team.BLUE ? '#1a3a7a' : '#7a1a1a'); ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = unit.team === Team.BLUE ? '#aaccff' : '#ffaaaa'; ctx.lineWidth = 1.5 * this.scale; ctx.stroke();
-          if (hasArrow) { const dir = unit.facingRight ? 1 : -1, ax = x + dir * r * 1.15, ay = y; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax - dir * r * 0.5, ay - r * 0.35); ctx.lineTo(ax - dir * r * 0.5, ay + r * 0.35); ctx.fill(); }
-          this.drawHpBar(x, y - r - 8 * this.scale, r * 2, unit.hpRatio(), unit.team);
+        drawHpBar(x,y,w,ratio,team) { const ctx=this.ctx, h=4*this.scale, bx=x-w/2, by=y; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(bx-1,by-1,w+2,h+2); ctx.fillStyle='#444'; ctx.fillRect(bx,by,w,h); const hpW=w*ratio, color=ratio>0.5?'#44dd44':ratio>0.25?'#dddd44':'#dd4444'; ctx.fillStyle=color; ctx.fillRect(bx,by,hpW,h); ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(bx,by,hpW,h*0.4); }
+        drawUnitCircle(unit, radius, hasArrow=false) {
+          const ctx=this.ctx, x=unit.x, y=unit.y, r=radius, baseColor=unit.team===Team.BLUE?'#4488ff':'#ff4444'; let body=baseColor; if(unit.flashTimer>0) body='#ff8888';
+          ctx.save(); ctx.beginPath(); ctx.arc(x,y,r*1.3,0,Math.PI*2); const glow=ctx.createRadialGradient(x,y,r*0.5,x,y,r*1.3); glow.addColorStop(0,unit.team===Team.BLUE?'rgba(60,140,255,0.5)':'rgba(255,60,60,0.5)'); glow.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=glow; ctx.fill(); ctx.restore();
+          ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); const grad=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r); grad.addColorStop(0,'#fff'); grad.addColorStop(0.4,body); grad.addColorStop(1,unit.team===Team.BLUE?'#1a3a7a':'#7a1a1a'); ctx.fillStyle=grad; ctx.fill(); ctx.strokeStyle=unit.team===Team.BLUE?'#aaccff':'#ffaaaa'; ctx.lineWidth=1.5*this.scale; ctx.stroke();
+          if(hasArrow) { const dir=unit.facingRight?1:-1, ax=x+dir*r*1.15, ay=y; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-dir*r*0.5, ay-r*0.35); ctx.lineTo(ax-dir*r*0.5, ay+r*0.35); ctx.fill(); }
+          this.drawHpBar(x, y-r-8*this.scale, r*2, unit.hpRatio(), unit.team);
         }
         drawTower(tower, size) {
-          const ctx = this.ctx, x = tower.x, y = tower.y, s = size, baseColor = tower.team === Team.BLUE ? '#3366cc' : '#cc3333';
-          const bodyW = s * 0.8, bodyH = s * 1.2, bodyTop = y - bodyH; ctx.fillStyle = tower.flashTimer > 0 ? '#ff8888' : baseColor; ctx.fillRect(x - bodyW / 2, bodyTop, bodyW, bodyH); ctx.strokeStyle = tower.team === Team.BLUE ? '#aaccff' : '#ffaaaa'; ctx.lineWidth = 2 * this.scale; ctx.strokeRect(x - bodyW / 2, bodyTop, bodyW, bodyH);
-          const triH = s * 0.7, triTop = bodyTop - triH; ctx.beginPath(); ctx.moveTo(x, triTop); ctx.lineTo(x - bodyW / 2 - s * 0.15, bodyTop); ctx.lineTo(x + bodyW / 2 + s * 0.15, bodyTop); ctx.closePath(); let triColor = baseColor; if (tower.attackGlow > 0.05) triColor = tower.team === Team.BLUE ? '#88bbff' : '#ff8888'; ctx.fillStyle = triColor; ctx.fill(); ctx.strokeStyle = tower.team === Team.BLUE ? '#ddeeff' : '#ffdddd'; ctx.stroke();
-          if (tower.attackGlow > 0) { ctx.fillStyle = 'rgba(255,255,200,0.5)'; ctx.beginPath(); ctx.arc(x, triTop + triH * 0.3, s * 0.35, 0, Math.PI * 2); ctx.fill(); }
-          this.drawHpBar(x, triTop - 10 * this.scale, s * 1.6, tower.hpRatio(), tower.team);
+          const ctx=this.ctx, x=tower.x, y=tower.y, s=size, baseColor=tower.team===Team.BLUE?'#3366cc':'#cc3333';
+          const bodyW=s*0.8, bodyH=s*1.2, bodyTop=y-bodyH; ctx.fillStyle=tower.flashTimer>0?'#ff8888':baseColor; ctx.fillRect(x-bodyW/2, bodyTop, bodyW, bodyH); ctx.strokeStyle=tower.team===Team.BLUE?'#aaccff':'#ffaaaa'; ctx.lineWidth=2*this.scale; ctx.strokeRect(x-bodyW/2, bodyTop, bodyW, bodyH);
+          const triH=s*0.7, triTop=bodyTop-triH; ctx.beginPath(); ctx.moveTo(x,triTop); ctx.lineTo(x-bodyW/2-s*0.15,bodyTop); ctx.lineTo(x+bodyW/2+s*0.15,bodyTop); ctx.closePath(); let triColor=baseColor; if(tower.attackGlow>0.05) triColor=tower.team===Team.BLUE?'#88bbff':'#ff8888'; ctx.fillStyle=triColor; ctx.fill(); ctx.strokeStyle=tower.team===Team.BLUE?'#ddeeff':'#ffdddd'; ctx.stroke();
+          if(tower.attackGlow>0) { ctx.fillStyle='rgba(255,255,200,0.5)'; ctx.beginPath(); ctx.arc(x,triTop+triH*0.3,s*0.35,0,Math.PI*2); ctx.fill(); }
+          this.drawHpBar(x, triTop-10*this.scale, s*1.6, tower.hpRatio(), tower.team);
         }
         drawBase(crystal, size) {
-          const ctx = this.ctx, x = crystal.x, y = crystal.y, s = size, baseColor = crystal.team === Team.BLUE ? '#3399ff' : '#ff3333';
-          const breath = 0.3 + Math.sin(crystal.glowPhase) * 0.2; const glowGrad = ctx.createRadialGradient(x, y, s * 0.3, x, y, s * 1.6); glowGrad.addColorStop(0, crystal.team === Team.BLUE ? `rgba(80,160,255,${breath + 0.3})` : `rgba(255,80,80,${breath + 0.3})`); glowGrad.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glowGrad; ctx.beginPath(); ctx.arc(x, y, s * 1.6, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI * 2 / 6 * i - Math.PI / 2; const px = x + Math.cos(a) * s, py = y + Math.sin(a) * s; i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); } ctx.closePath();
-          const hexGrad = ctx.createRadialGradient(x - s * 0.2, y - s * 0.2, s * 0.1, x, y, s); hexGrad.addColorStop(0, '#fff'); hexGrad.addColorStop(0.3, crystal.flashTimer > 0 ? '#ff8888' : baseColor); hexGrad.addColorStop(1, crystal.team === Team.BLUE ? '#0a2a5a' : '#5a0a0a'); ctx.fillStyle = hexGrad; ctx.fill(); ctx.strokeStyle = crystal.team === Team.BLUE ? '#aaddff' : '#ffaaaa'; ctx.lineWidth = 2.5 * this.scale; ctx.stroke();
-          this.drawHpBar(x, y - s - 14 * this.scale, s * 2.2, crystal.hpRatio(), crystal.team);
+          const ctx=this.ctx, x=crystal.x, y=crystal.y, s=size, baseColor=crystal.team===Team.BLUE?'#3399ff':'#ff3333';
+          const breath=0.3+Math.sin(crystal.glowPhase)*0.2; const glowGrad=ctx.createRadialGradient(x,y,s*0.3,x,y,s*1.6); glowGrad.addColorStop(0,crystal.team===Team.BLUE?`rgba(80,160,255,${breath+0.3})`:`rgba(255,80,80,${breath+0.3})`); glowGrad.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=glowGrad; ctx.beginPath(); ctx.arc(x,y,s*1.6,0,Math.PI*2); ctx.fill();
+          ctx.beginPath(); for(let i=0;i<6;i++) { const a=Math.PI*2/6*i-Math.PI/2; const px=x+Math.cos(a)*s, py=y+Math.sin(a)*s; i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); } ctx.closePath();
+          const hexGrad=ctx.createRadialGradient(x-s*0.2,y-s*0.2,s*0.1,x,y,s); hexGrad.addColorStop(0,'#fff'); hexGrad.addColorStop(0.3,crystal.flashTimer>0?'#ff8888':baseColor); hexGrad.addColorStop(1,crystal.team===Team.BLUE?'#0a2a5a':'#5a0a0a'); ctx.fillStyle=hexGrad; ctx.fill(); ctx.strokeStyle=crystal.team===Team.BLUE?'#aaddff':'#ffaaaa'; ctx.lineWidth=2.5*this.scale; ctx.stroke();
+          this.drawHpBar(x, y-s-14*this.scale, s*2.2, crystal.hpRatio(), crystal.team);
         }
-        drawProjectile(proj) { const ctx = this.ctx; ctx.strokeStyle = proj.color; ctx.lineWidth = 3 * this.scale; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(proj.startX, proj.startY); ctx.lineTo(proj.x, proj.y); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(proj.x, proj.y, 3 * this.scale, 0, Math.PI * 2); ctx.fill(); }
-        drawParticle(p) { const ctx = this.ctx, alpha = p.life / p.maxLife; ctx.fillStyle = `rgba(${p.color},${alpha})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * this.scale, 0, Math.PI * 2); ctx.fill(); }
-
-        // 绘制虚拟摇杆（移动端左下角）
-        drawJoystick(cx, cy, baseR, knobR, kx, ky, active) {
-          const ctx = this.ctx;
-          ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2 * this.scale;
-          ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          const g = ctx.createRadialGradient(kx - knobR * 0.2, ky - knobR * 0.2, knobR * 0.1, kx, ky, knobR);
-          g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(200,200,220,0.7)');
-          ctx.fillStyle = g; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * this.scale;
-          ctx.beginPath(); ctx.arc(kx, ky, knobR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        drawProjectile(proj) { const ctx=this.ctx; ctx.strokeStyle=proj.color; ctx.lineWidth=3*this.scale; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(proj.startX,proj.startY); ctx.lineTo(proj.x,proj.y); ctx.stroke(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(proj.x,proj.y,3*this.scale,0,Math.PI*2); ctx.fill(); }
+        drawParticle(p) { const ctx=this.ctx, alpha=p.life/p.maxLife; ctx.fillStyle=`rgba(${p.color},${alpha})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.size*this.scale,0,Math.PI*2); ctx.fill(); }
+        drawJoystick(cx,cy,baseR,knobR,kx,ky,active) {
+          const ctx=this.ctx; ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2*this.scale; ctx.beginPath(); ctx.arc(cx,cy,baseR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          const g=ctx.createRadialGradient(kx-knobR*0.2,ky-knobR*0.2,knobR*0.1,kx,ky,knobR); g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(1,'rgba(200,200,220,0.7)'); ctx.fillStyle=g; ctx.strokeStyle='#fff'; ctx.lineWidth=2*this.scale; ctx.beginPath(); ctx.arc(kx,ky,knobR,0,Math.PI*2); ctx.fill(); ctx.stroke();
         }
-
-        // 绘制攻击按钮（移动端右下角）
-        drawAtkBtn(cx, cy, r, pressed) {
-          const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6;
-          ctx.fillStyle = `rgba(255,80,60,${alpha})`; ctx.strokeStyle = 'rgba(255,200,180,0.9)'; ctx.lineWidth = 2.5 * this.scale;
-          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('⚔️', cx, cy);
-        }
-
-        // 绘制冲刺按钮（移动端右下角，位于攻击按钮下方）
-        drawSkillBtn(cx, cy, r, pressed, cooldownProgress) {
-          const ctx = this.ctx, alpha = pressed ? 0.9 : 0.6;
-          ctx.fillStyle = `rgba(80,160,255,${alpha})`; ctx.strokeStyle = 'rgba(200,220,255,0.9)'; ctx.lineWidth = 2.5 * this.scale;
-          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          if (cooldownProgress > 0) {
-            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cooldownProgress, false); ctx.closePath();
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
-          }
-          ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('💨', cx, cy);
-        }
-
+        drawAtkBtn(cx,cy,r,pressed) { const ctx=this.ctx, alpha=pressed?0.9:0.6; ctx.fillStyle=`rgba(255,80,60,${alpha})`; ctx.strokeStyle='rgba(255,200,180,0.9)'; ctx.lineWidth=2.5*this.scale; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.9}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⚔️',cx,cy); }
+        drawSkillBtn(cx,cy,r,pressed,cooldownProgress) { const ctx=this.ctx, alpha=pressed?0.9:0.6; ctx.fillStyle=`rgba(80,160,255,${alpha})`; ctx.strokeStyle='rgba(200,220,255,0.9)'; ctx.lineWidth=2.5*this.scale; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); if(cooldownProgress>0){ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*cooldownProgress,false); ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill(); } ctx.fillStyle='#fff'; ctx.font=`bold ${r*0.9}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('💨',cx,cy); }
         drawTopUI(blueTowers, redTowers, hero) {
-          const ctx = this.ctx, w = this.w, y = 8 * this.scale, icon = 10 * this.scale, gap = 6 * this.scale;
-          ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, w, 32 * this.scale);
-          ctx.fillStyle = '#4488ff'; ctx.font = `${11 * this.scale}px sans-serif`; ctx.textAlign = 'left'; ctx.fillText('蓝塔', 20 * this.scale, y + 18 * this.scale);
-          for (let i = 0; i < 2; i++) { const tx = 55 * this.scale + i * (icon + gap), ty = y + 8 * this.scale; ctx.fillStyle = blueTowers[i].alive ? '#44cc44' : '#555'; ctx.fillRect(tx, ty, icon, icon); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, icon, icon); }
-          ctx.fillStyle = '#ff4444'; ctx.textAlign = 'right'; ctx.fillText('红塔', w - 20 * this.scale, y + 18 * this.scale);
-          for (let i = 0; i < 2; i++) { const tx = w - 55 * this.scale - (i + 1) * (icon + gap), ty = y + 8 * this.scale; ctx.fillStyle = redTowers[i].alive ? '#44cc44' : '#555'; ctx.fillRect(tx, ty, icon, icon); ctx.strokeStyle = '#fff'; ctx.strokeRect(tx, ty, icon, icon); }
-          if (hero) { ctx.fillStyle = '#ffd700'; ctx.font = `bold ${10 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`💎${hero.crystal}`, w / 2, y + 20 * this.scale); }
+          const ctx=this.ctx, w=this.w, y=8*this.scale, icon=10*this.scale, gap=6*this.scale;
+          ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,w,32*this.scale);
+          ctx.fillStyle='#4488ff'; ctx.font=`${11*this.scale}px sans-serif`; ctx.textAlign='left'; ctx.fillText('蓝塔',20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++){ const tx=55*this.scale+i*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=blueTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(tx,ty,icon,icon); }
+          ctx.fillStyle='#ff4444'; ctx.textAlign='right'; ctx.fillText('红塔',w-20*this.scale, y+18*this.scale);
+          for(let i=0;i<2;i++){ const tx=w-55*this.scale-(i+1)*(icon+gap), ty=y+8*this.scale; ctx.fillStyle=redTowers[i].alive?'#44cc44':'#555'; ctx.fillRect(tx,ty,icon,icon); ctx.strokeStyle='#fff'; ctx.strokeRect(tx,ty,icon,icon); }
+          if(hero){ ctx.fillStyle='#ffd700'; ctx.font=`bold ${10*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(`💎${hero.crystal}`, w/2, y+20*this.scale); }
         }
-
-        drawMenu(title, options, selected) { const ctx = this.ctx, w = this.w, h = this.h; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#fff'; ctx.font = `bold ${28 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(title, w / 2, h * 0.3); options.forEach((opt, i) => { const y = h * 0.45 + i * 50 * this.scale; ctx.fillStyle = i === selected ? '#ffd700' : '#ccc'; ctx.font = `${18 * this.scale}px sans-serif`; ctx.fillText(opt, w / 2, y); }); }
-        drawGameOver(win, stats) { const ctx = this.ctx, w = this.w, h = this.h; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, w, h); const pw = Math.min(320 * this.scale, w * 0.7), ph = Math.min(240 * this.scale, h * 0.6), px = w / 2 - pw / 2, py = h / 2 - ph / 2; ctx.fillStyle = 'rgba(30,30,50,0.95)'; ctx.strokeStyle = win ? '#ffd700' : '#ff4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke(); ctx.fillStyle = win ? '#ffd700' : '#ff4444'; ctx.font = `bold ${22 * this.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(win ? '胜利！' : '失败！', w / 2, py + ph * 0.25); ctx.fillStyle = '#fff'; ctx.font = `${12 * this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`, w / 2, py + ph * 0.45); const btnW = 120 * this.scale, btnH = 36 * this.scale, btnX = w / 2 - btnW / 2, btnY = py + ph * 0.65; ctx.fillStyle = '#4488ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `bold ${14 * this.scale}px sans-serif`; ctx.fillText('重新开始', w / 2, btnY + btnH / 2); return { x: btnX, y: btnY, w: btnW, h: btnH }; }
+        drawMenu(title, options, selected) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); ctx.fillStyle='#fff'; ctx.font=`bold ${28*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(title,w/2,h*0.3); options.forEach((opt,i)=>{ const y=h*0.45+i*50*this.scale; ctx.fillStyle=i===selected?'#ffd700':'#ccc'; ctx.font=`${18*this.scale}px sans-serif`; ctx.fillText(opt,w/2,y); }); }
+        drawGameOver(win, stats) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); const pw=Math.min(320*this.scale,w*0.7), ph=Math.min(240*this.scale,h*0.6), px=w/2-pw/2, py=h/2-ph/2; ctx.fillStyle='rgba(30,30,50,0.95)'; ctx.strokeStyle=win?'#ffd700':'#ff4444'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke(); ctx.fillStyle=win?'#ffd700':'#ff4444'; ctx.font=`bold ${22*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(win?'胜利！':'失败！',w/2,py+ph*0.25); ctx.fillStyle='#fff'; ctx.font=`${12*this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`,w/2,py+ph*0.45); const btnW=120*this.scale, btnH=36*this.scale, btnX=w/2-btnW/2, btnY=py+ph*0.65; ctx.fillStyle='#4488ff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(btnX,btnY,btnW,btnH,8); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${14*this.scale}px sans-serif`; ctx.fillText('重新开始',w/2,btnY+btnH/2); return {x:btnX, y:btnY, w:btnW, h:btnH}; }
       }
 
       class GameLogic {
-        constructor(w, h, scale, difficulty = 'normal') {
-          this.w = w; this.h = h; this.scale = scale; this.difficulty = difficulty; this.laneY = h * 0.56; this.mapMinX = 15; this.mapMaxX = w - 15; this.mapMinY = this.laneY - 60 * scale; this.mapMaxY = this.laneY + 60 * scale;
-          this.blueBaseX = w * 0.04; this.blueT1X = w * 0.2; this.blueT2X = w * 0.37; this.redT3X = w * 0.63; this.redT4X = w * 0.8; this.redBaseX = w * 0.96;
-          this.initUnits(); this.blueMinions = []; this.redMinions = []; this.projectiles = []; this.particles = []; this.spawnTimer = 0; this.gameOver = false; this.victory = false; this.time = 0; this.hero.skillCooldown = 0;
+        constructor(w,h,scale,difficulty='normal') {
+          this.w=w; this.h=h; this.scale=scale; this.difficulty=difficulty;
+          this.laneY=h*0.56; this.mapMinX=15; this.mapMaxX=w-15; this.mapMinY=this.laneY-60*scale; this.mapMaxY=this.laneY+60*scale;
+          this.blueBaseX=w*0.04; this.blueT1X=w*0.2; this.blueT2X=w*0.37; this.redT3X=w*0.63; this.redT4X=w*0.8; this.redBaseX=w*0.96;
+          this.initUnits(); this.blueMinions=[]; this.redMinions=[]; this.projectiles=[]; this.particles=[]; this.spawnTimer=0; this.gameOver=false; this.victory=false; this.time=0; this.hero.skillCooldown=0;
         }
-        initUnits() { const diff = CONFIG.DIFFICULTY[this.difficulty]; const mHp = Math.floor(CONFIG.MINION_HP * diff.hpMul), mAtk = Math.floor(CONFIG.MINION_ATK * diff.atkMul); this.hero = new Hero(this.blueBaseX + 40 * this.scale, this.laneY, Team.BLUE); this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)]; this.redTowers = [new Tower(this.redT3X, this.laneY, Team.RED), new Tower(this.redT4X, this.laneY, Team.RED)]; this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE); this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED); this.minionHp = mHp; this.minionAtk = mAtk; }
-        spawnMinion(team) { const m = new Minion(team === Team.BLUE ? this.blueBaseX + 30 * this.scale : this.redBaseX - 30 * this.scale, this.laneY, team, team === Team.BLUE ? this.redBaseX : this.blueBaseX); m.maxHp = this.minionHp; m.hp = this.minionHp; m.atk = this.minionAtk; if (team === Team.BLUE) this.blueMinions.push(m); else this.redMinions.push(m); return m; }
-        getBlueUnits() { const u = [...this.blueMinions]; if (this.hero.alive) u.push(this.hero); for (const t of this.blueTowers) if (t.alive) u.push(t); if (this.blueBase.alive) u.push(this.blueBase); return u; }
-        getRedUnits() { const u = [...this.redMinions]; for (const t of this.redTowers) if (t.alive) u.push(t); if (this.redBase.alive) u.push(this.redBase); return u; }
-        createProjectile(from, to) { const col = from.team === Team.BLUE ? '#88bbff' : '#ff8888'; const dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk; const p = new Projectile(from.x, from.y, to.x, to.y, col, dmg, to); this.projectiles.push(p); }
-        unitAttack(attacker, target, audio) { if (!attacker.canAttack() || !target.alive) return false; attacker.performAttack(); this.createProjectile(attacker, target); audio.attack(); return true; }
-        addParticles(x, y, count, color) { for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2, speed = 50 + Math.random() * 80; this.particles.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0.3 + Math.random() * 0.3, color, 2 + Math.random() * 3)); } }
+        initUnits() {
+          const diff = CONFIG.DIFFICULTY[this.difficulty];
+          // 蓝方单位不变
+          this.hero = new Hero(this.blueBaseX+40*this.scale, this.laneY, Team.BLUE);
+          this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)];
+          this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
+          // 红方单位应用难度系数
+          this.redTowers = [
+            new Tower(this.redT3X, this.laneY, Team.RED),
+            new Tower(this.redT4X, this.laneY, Team.RED)
+          ];
+          this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
+          // 修改红方防御塔属性
+          for(const t of this.redTowers) {
+            t.maxHp = Math.floor(CONFIG.TOWER_HP * diff.hpMul);
+            t.hp = t.maxHp;
+            t.atk = Math.floor(CONFIG.TOWER_ATK * diff.atkMul);
+          }
+          // 小兵属性，蓝方默认，红方应用系数
+          this.blueMinionHp = CONFIG.MINION_HP;
+          this.blueMinionAtk = CONFIG.MINION_ATK;
+          this.redMinionHp = Math.floor(CONFIG.MINION_HP * diff.hpMul);
+          this.redMinionAtk = Math.floor(CONFIG.MINION_ATK * diff.atkMul);
+        }
+        spawnMinion(team) {
+          const isBlue = team === Team.BLUE;
+          const m = new Minion(
+            isBlue ? this.blueBaseX+30*this.scale : this.redBaseX-30*this.scale,
+            this.laneY,
+            team,
+            isBlue ? this.redBaseX : this.blueBaseX
+          );
+          if(isBlue) {
+            m.maxHp = this.blueMinionHp; m.hp = this.blueMinionHp;
+            m.atk = this.blueMinionAtk;
+            this.blueMinions.push(m);
+          } else {
+            m.maxHp = this.redMinionHp; m.hp = this.redMinionHp;
+            m.atk = this.redMinionAtk;
+            this.redMinions.push(m);
+          }
+          return m;
+        }
+        getBlueUnits() { const u=[...this.blueMinions]; if(this.hero.alive) u.push(this.hero); for(const t of this.blueTowers) if(t.alive) u.push(t); if(this.blueBase.alive) u.push(this.blueBase); return u; }
+        getRedUnits() { const u=[...this.redMinions]; for(const t of this.redTowers) if(t.alive) u.push(t); if(this.redBase.alive) u.push(this.redBase); return u; }
+        createProjectile(from,to) {
+          const col = from.team===Team.BLUE?'#88bbff':'#ff8888';
+          let dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk;
+          // 如果攻击者是敌方小兵/防御塔 且 目标是英雄，则伤害倍率提升
+          if(to instanceof Hero && (from instanceof Minion || from instanceof Tower) && from.team !== to.team) {
+            dmg = Math.floor(dmg * CONFIG.ENEMY_DAMAGE_TO_HERO_MUL);
+          }
+          const attackerType = from instanceof Minion ? 'minion' : (from instanceof Tower ? 'tower' : 'hero');
+          const p = new Projectile(from.x, from.y, to.x, to.y, col, dmg, to, attackerType);
+          this.projectiles.push(p);
+        }
+        unitAttack(attacker,target,audio) {
+          if(!attacker.canAttack() || !target.alive) return false;
+          attacker.performAttack();
+          this.createProjectile(attacker,target);
+          audio.attack();
+          return true;
+        }
+        addParticles(x,y,count,color) { for(let i=0;i<count;i++){ const angle=Math.random()*Math.PI*2, speed=50+Math.random()*80; this.particles.push(new Particle(x,y,Math.cos(angle)*speed,Math.sin(angle)*speed,0.3+Math.random()*0.3,color,2+Math.random()*3)); } }
         update(dt, input, audio) {
-          if (this.gameOver) return;
-          this.time += dt;
-          const { vx, vy } = input.getMovement(); if (vx !== 0 || vy !== 0) this.hero.setMovement(vx, vy); else this.hero.stopMovement();
-          this.hero.updatePosition(dt, this.mapMinX, this.mapMaxX, this.mapMinY, this.mapMaxY);
+          if(this.gameOver) return;
+          this.time+=dt;
+          const {vx,vy}=input.getMovement(); if(vx!==0||vy!==0) this.hero.setMovement(vx,vy); else this.hero.stopMovement();
+          this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
           this.hero.updateCooldown(dt); this.hero.updateRespawn(dt); this.hero.updateBoost(dt);
           this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown - dt);
-          if (input.isSkill() && this.hero.alive && this.hero.skillCooldown <= 0) {
+          // 技能冲刺
+          if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
             this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
-            const dir = this.hero.facingRight ? 1 : -1;
+            const dir = this.hero.facingRight?1:-1;
             this.hero.x += dir * CONFIG.DASH_DISTANCE * this.scale;
             this.hero.x = Math.max(this.mapMinX, Math.min(this.mapMaxX, this.hero.x));
             this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
-            audio.play(300, 0.15, 'square', 0.15);
+            audio.play(300,0.15,'square',0.15);
           }
-          if (this.hero.alive && input.isAttack()) {
-            if (this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
-            const enemies = this.getRedUnits(); let closest = null, closestDist = Infinity;
-            for (const e of enemies) { const d = this.hero.distanceTo(e); if (d <= this.hero.range && d < closestDist) { closest = e; closestDist = d; } }
-            if (closest) this.unitAttack(this.hero, closest, audio);
+          // 手动攻击（优先级：小兵 > 防御塔 > 水晶）
+          if(this.hero.alive && input.isAttack()) {
+            if(this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
+            const enemies = this.getRedUnits();
+            // 范围内按优先级选择：小兵 > 塔 > 水晶
+            const inRange = enemies.filter(e => this.hero.inRange(e));
+            const minions = inRange.filter(e => e instanceof Minion);
+            const towers = inRange.filter(e => e instanceof Tower);
+            const crystals = inRange.filter(e => e instanceof BaseCrystal);
+            let target = null;
+            if(minions.length > 0) {
+              target = minions.reduce((a,b) => this.hero.distanceTo(a) < this.hero.distanceTo(b) ? a : b);
+            } else if(towers.length > 0) {
+              target = towers.reduce((a,b) => this.hero.distanceTo(a) < this.hero.distanceTo(b) ? a : b);
+            } else if(crystals.length > 0) {
+              target = crystals[0]; // 一般只有一个水晶
+            }
+            if(target) this.unitAttack(this.hero, target, audio);
           }
-          if (this.hero.alive && this.hero.canAttack()) {
-            const enemies = this.getRedUnits(); let best = null, bestD = Infinity;
-            for (const e of enemies) { const d = this.hero.distanceTo(e); if (d <= this.hero.range && d < bestD) { best = e; bestD = d; } }
-            if (best) this.unitAttack(this.hero, best, audio);
-          }
+          // 移除自动攻击逻辑，只保留手动攻击
+
           const blueEnemies = this.getRedUnits(), redEnemies = this.getBlueUnits();
-          for (const m of this.blueMinions) { m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt, this.mapMinX, this.mapMaxX); if (m.canAttack() && m.currentTarget && m.currentTarget.alive && m.inRange(m.currentTarget)) this.unitAttack(m, m.currentTarget, audio); }
-          for (const m of this.redMinions) { m.updateCooldown(dt); m.findTarget(redEnemies); m.updateMovement(dt, this.mapMinX, this.mapMaxX); if (m.canAttack() && m.currentTarget && m.currentTarget.alive && m.inRange(m.currentTarget)) this.unitAttack(m, m.currentTarget, audio); }
-          for (const t of [...this.blueTowers, ...this.redTowers]) { if (!t.alive) continue; t.updateCooldown(dt); t.updateGlow(dt); const enemies = t.team === Team.BLUE ? redEnemies : blueEnemies; t.findTarget(enemies); if (t.canAttack() && t.currentTarget && t.currentTarget.alive && t.inRange(t.currentTarget)) this.unitAttack(t, t.currentTarget, audio); }
+          for(const m of this.blueMinions) { m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio); }
+          for(const m of this.redMinions) { m.updateCooldown(dt); m.findTarget(redEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio); }
+          for(const t of [...this.blueTowers, ...this.redTowers]) { if(!t.alive) continue; t.updateCooldown(dt); t.updateGlow(dt); const enemies = t.team===Team.BLUE?redEnemies:blueEnemies; t.findTarget(enemies); if(t.canAttack()&&t.currentTarget&&t.currentTarget.alive&&t.inRange(t.currentTarget)) this.unitAttack(t,t.currentTarget,audio); }
           this.blueBase.updateGlow(dt); this.redBase.updateGlow(dt);
-          for (const p of this.projectiles) p.update(dt);
-          const arrived = this.projectiles.filter(p => p.done); this.projectiles = this.projectiles.filter(p => !p.done);
-          for (const p of arrived) { if (p.target && p.target.alive) { p.target.takeDamage(p.dmg); audio.hit(); this.addParticles(p.target.x, p.target.y, 3, '255,200,0'); if (!p.target.alive && p.target instanceof Minion && p.target.team !== this.hero.team) { this.hero.crystal += 1; this.hero.kills += 1; } } }
-          for (const t of [...this.blueTowers, ...this.redTowers]) { if (!t.alive && t._destroyed === undefined) { t._destroyed = true; audio.towerDown(); this.addParticles(t.x, t.y, 15, '255,100,0'); if (t.team === Team.RED) this.hero.towersDestroyed++; } }
-          this.blueMinions = this.blueMinions.filter(m => m.alive); this.redMinions = this.redMinions.filter(m => m.alive); this.particles = this.particles.filter(p => p.alive());
-          for (const p of this.particles) p.update(dt);
-          this.spawnTimer += dt; if (this.spawnTimer >= CONFIG.MINION_INTERVAL) { this.spawnTimer -= CONFIG.MINION_INTERVAL; if (this.blueBase.alive) this.spawnMinion(Team.BLUE); if (this.redBase.alive) this.spawnMinion(Team.RED); }
-          if (!this.blueBase.alive) { this.gameOver = true; this.victory = false; audio.defeat(); } else if (!this.redBase.alive) { this.gameOver = true; this.victory = true; audio.victory(); }
-          for (const u of [this.hero, ...this.blueMinions, ...this.redMinions, ...this.blueTowers, ...this.redTowers, this.blueBase, this.redBase]) if (u) u.updateDisplayHp(dt);
+          for(const p of this.projectiles) p.update(dt);
+          const arrived = this.projectiles.filter(p=>p.done); this.projectiles = this.projectiles.filter(p=>!p.done);
+          for(const p of arrived) {
+            if(p.target && p.target.alive) {
+              // 弹道命中，造成伤害
+              p.target.takeDamage(p.dmg);
+              audio.hit();
+              this.addParticles(p.target.x, p.target.y, 3, '255,200,0');
+              if(!p.target.alive && p.target instanceof Minion && p.target.team!==this.hero.team) {
+                this.hero.crystal += 1;
+                this.hero.kills += 1;
+              }
+            }
+          }
+          for(const t of [...this.blueTowers, ...this.redTowers]) { if(!t.alive && t._destroyed===undefined) { t._destroyed=true; audio.towerDown(); this.addParticles(t.x,t.y,15,'255,100,0'); if(t.team===Team.RED) this.hero.towersDestroyed++; } }
+          this.blueMinions=this.blueMinions.filter(m=>m.alive); this.redMinions=this.redMinions.filter(m=>m.alive); this.particles=this.particles.filter(p=>p.alive());
+          for(const p of this.particles) p.update(dt);
+          this.spawnTimer+=dt; if(this.spawnTimer>=CONFIG.MINION_INTERVAL) { this.spawnTimer-=CONFIG.MINION_INTERVAL; if(this.blueBase.alive) this.spawnMinion(Team.BLUE); if(this.redBase.alive) this.spawnMinion(Team.RED); }
+          if(!this.blueBase.alive) { this.gameOver=true; this.victory=false; audio.defeat(); } else if(!this.redBase.alive) { this.gameOver=true; this.victory=true; audio.victory(); }
+          for(const u of [this.hero, ...this.blueMinions, ...this.redMinions, ...this.blueTowers, ...this.redTowers, this.blueBase, this.redBase]) if(u) u.updateDisplayHp(dt);
         }
       }
 
@@ -407,125 +432,107 @@
           const initAudio = () => { this.audio.init(); document.removeEventListener('touchstart', initAudio); document.removeEventListener('click', initAudio); };
           document.addEventListener('touchstart', initAudio, { once: false }); document.addEventListener('click', initAudio, { once: false });
           document.addEventListener('keydown', e => {
-            if (this.state === 'menu') { if (e.key === 'ArrowDown') this.menuSelection = (this.menuSelection + 1) % 3; if (e.key === 'ArrowUp') this.menuSelection = (this.menuSelection + 2) % 3; if (e.key === 'Enter') this._startGame(); }
-            if (this.state === 'over' && e.key === 'Enter') this._restart();
-            if (this.state === 'playing' && e.key === 'Escape') this.state = 'paused';
-            else if (this.state === 'paused' && e.key === 'Escape') this.state = 'playing';
+            if(this.state === 'menu') { if(e.key === 'ArrowDown') this.menuSelection = (this.menuSelection+1)%3; if(e.key === 'ArrowUp') this.menuSelection = (this.menuSelection+2)%3; if(e.key === 'Enter') this._startGame(); }
+            if(this.state === 'over' && e.key === 'Enter') this._restart();
+            if(this.state === 'playing' && e.key === 'Escape') this.state = 'paused';
+            else if(this.state === 'paused' && e.key === 'Escape') this.state = 'playing';
           });
         }
         _checkOrientation() { const w = window.innerWidth, h = window.innerHeight; document.getElementById('rotateHint').classList.toggle('active', w < h); }
         _resize() {
-          if (window.innerWidth < window.innerHeight) return;
+          if(window.innerWidth < window.innerHeight) return;
           const dpr = Math.min(window.devicePixelRatio || 1, 2); this.canvas.style.width = window.innerWidth + 'px'; this.canvas.style.height = window.innerHeight + 'px'; this.canvas.width = Math.floor(window.innerWidth * dpr); this.canvas.height = Math.floor(window.innerHeight * dpr);
           this.renderer.resize(this.canvas.width, this.canvas.height); this._updateUI();
-          if (this.logic) { this.logic.w = this.canvas.width; this.logic.h = this.canvas.height; this.logic.scale = this.renderer.scale; this.logic.laneY = this.canvas.height * 0.56; this.logic.mapMinX = 15; this.logic.mapMaxX = this.canvas.width - 15; this.logic.mapMinY = this.logic.laneY - 60 * this.renderer.scale; this.logic.mapMaxY = this.logic.laneY + 60 * this.renderer.scale; }
+          if(this.logic) { this.logic.w = this.canvas.width; this.logic.h = this.canvas.height; this.logic.scale = this.renderer.scale; this.logic.laneY = this.canvas.height * 0.56; this.logic.mapMinX = 15; this.logic.mapMaxX = this.canvas.width - 15; this.logic.mapMinY = this.logic.laneY - 60 * this.renderer.scale; this.logic.mapMaxY = this.logic.laneY + 60 * this.renderer.scale; }
         }
         _updateUI() {
           const w = this.canvas.width, h = this.canvas.height, s = this.renderer.scale;
-          // 移动端触控控件（仅在触屏设备上设置）
-          if (isMobile) {
-            const joyR = CONFIG.JOYSTICK_BASE * h, knobR = CONFIG.JOYSTICK_KNOB * h;
-            const joyX = CONFIG.JOY_MARGIN * w + joyR, joyY = h - CONFIG.JOY_MARGIN * h - joyR;
+          if(isMobile) {
+            const joyR = CONFIG.JOYSTICK_BASE * h, knobR = CONFIG.JOYSTICK_KNOB * h; const joyX = CONFIG.JOY_MARGIN * w + joyR, joyY = h - CONFIG.JOY_MARGIN * h - joyR;
             this.input.joystick.center = { x: joyX, y: joyY }; this.input.joystick.baseRadius = joyR; this.input.joystick.knobRadius = knobR;
-            // 攻击按钮和冲刺按钮垂直排列，均不小于48px
-            const minBtnSize = Math.max(48, CONFIG.ATK_BTN * h * 1.2); // 保证至少48px
-            const btnGap = 12;
-            const atkR = minBtnSize / 2, skillR = minBtnSize / 2;
-            const totalHeight = atkR * 2 + skillR * 2 + btnGap;
-            const startY = h - CONFIG.ATK_MARGIN * h - totalHeight / 2;
-            const atkCY = startY + atkR;
-            const skillCY = atkCY + atkR + btnGap + skillR;
+            const minBtnSize = Math.max(48, CONFIG.ATK_BTN * h * 1.2);
+            const atkR = minBtnSize / 2, skillR = minBtnSize / 2, btnGap = 12;
+            const totalHeight = atkR*2 + skillR*2 + btnGap;
+            const startY = h - CONFIG.ATK_MARGIN * h - totalHeight/2;
             const centerX = w - CONFIG.ATK_MARGIN * w - atkR;
-            this.input.attackBtn.center = { x: centerX, y: atkCY }; this.input.attackBtn.radius = atkR;
-            this.input.skillBtn.center = { x: centerX, y: skillCY }; this.input.skillBtn.radius = skillR;
+            this.input.attackBtn.center = { x: centerX, y: startY + atkR }; this.input.attackBtn.radius = atkR;
+            this.input.skillBtn.center = { x: centerX, y: startY + atkR*2 + btnGap + skillR }; this.input.skillBtn.radius = skillR;
           } else {
-            // PC端不显示虚拟控件
-            this.input.joystick.center = { x: 0, y: 0 }; this.input.attackBtn.center = { x: 0, y: 0 }; this.input.skillBtn.center = { x: 0, y: 0 };
+            this.input.joystick.center = { x:0, y:0 }; this.input.attackBtn.center = { x:0, y:0 }; this.input.skillBtn.center = { x:0, y:0 };
           }
-          // 顶部按钮
-          this.returnRect = { x: 5 * s, y: 35 * s, w: 35 * s, h: 30 * s };
-          this.restartRect = { x: 45 * s, y: 35 * s, w: 35 * s, h: 30 * s };
-          const muteSize = 30 * s;
-          this.muteRect = { x: w / 2 - 15 * s, y: 35 * s, w: muteSize, h: muteSize };
-          this.pauseRect = { x: w - 45 * s, y: 35 * s, w: 35 * s, h: 30 * s };
+          this.returnRect = { x:5*s, y:35*s, w:35*s, h:30*s };
+          this.restartRect = { x:45*s, y:35*s, w:35*s, h:30*s };
+          this.muteRect = { x:w/2-15*s, y:35*s, w:30*s, h:30*s };
+          this.pauseRect = { x:w-45*s, y:35*s, w:35*s, h:30*s };
         }
         _startGame() { this.state = 'playing'; this.guideTimer = 3; this.logic = new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty); this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED); this.audio.init(); }
         _restart() { this._startGame(); }
         run(timestamp) {
-          if (this.state !== 'menu' && this.state !== 'paused') { const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1); this.lastTime = timestamp; if (this.state === 'playing') this.logic.update(dt, this.input, this.audio); if (this.state === 'playing' && this.logic.gameOver) this.state = 'over'; this.guideTimer = Math.max(0, this.guideTimer - dt); }
+          if(this.state !== 'menu' && this.state !== 'paused') { const dt = Math.min((timestamp - this.lastTime)/1000, 0.1); this.lastTime = timestamp; if(this.state === 'playing') this.logic.update(dt, this.input, this.audio); if(this.state === 'playing' && this.logic.gameOver) this.state = 'over'; this.guideTimer = Math.max(0, this.guideTimer - dt); }
           else { this.lastTime = timestamp; }
           this._render();
           this.raf = requestAnimationFrame(t => this.run(t));
         }
         _render() {
           const r = this.renderer, ctx = this.ctx; r.clear();
-          if (this.state === 'menu') { r.drawMenu('横版推塔', ['开始游戏 (简单)', '开始游戏 (普通)', '开始游戏 (困难)'], this.menuSelection); this.input.keys = {}; return; }
-          if (!this.logic) return;
-          r.drawMap(this.logic.laneY); r.drawBase(this.logic.blueBase, 28 * r.scale); r.drawBase(this.logic.redBase, 28 * r.scale);
-          for (const t of this.logic.blueTowers) if (t.alive) r.drawTower(t, 30 * r.scale);
-          for (const t of this.logic.redTowers) if (t.alive) r.drawTower(t, 30 * r.scale);
-          for (const p of this.logic.projectiles) r.drawProjectile(p);
-          for (const m of this.logic.blueMinions) r.drawUnitCircle(m, 8 * r.scale);
-          for (const m of this.logic.redMinions) r.drawUnitCircle(m, 8 * r.scale);
-          if (this.logic.hero.alive) r.drawUnitCircle(this.logic.hero, 12 * r.scale, true);
-          else if (this.logic.hero.respawnTimer > 0) { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = `bold ${16 * r.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`复活:${Math.ceil(this.logic.hero.respawnTimer)}秒`, this.logic.hero.spawnX, this.logic.hero.spawnY - 30 * r.scale); }
-          for (const p of this.logic.particles) r.drawParticle(p);
-          // 操作说明（自适应设备）
-          if (this.guideTimer > 0) {
+          if(this.state === 'menu') { r.drawMenu('横版推塔', ['开始游戏 (简单)', '开始游戏 (普通)', '开始游戏 (困难)'], this.menuSelection); this.input.keys = {}; return; }
+          if(!this.logic) return;
+          r.drawMap(this.logic.laneY); r.drawBase(this.logic.blueBase, 28*r.scale); r.drawBase(this.logic.redBase, 28*r.scale);
+          for(const t of this.logic.blueTowers) if(t.alive) r.drawTower(t, 30*r.scale);
+          for(const t of this.logic.redTowers) if(t.alive) r.drawTower(t, 30*r.scale);
+          for(const p of this.logic.projectiles) r.drawProjectile(p);
+          for(const m of this.logic.blueMinions) r.drawUnitCircle(m, 8*r.scale);
+          for(const m of this.logic.redMinions) r.drawUnitCircle(m, 8*r.scale);
+          if(this.logic.hero.alive) r.drawUnitCircle(this.logic.hero, 12*r.scale, true);
+          else if(this.logic.hero.respawnTimer > 0) { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.font = `bold ${16*r.scale}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`复活:${Math.ceil(this.logic.hero.respawnTimer)}秒`, this.logic.hero.spawnX, this.logic.hero.spawnY - 30*r.scale); }
+          for(const p of this.logic.particles) r.drawParticle(p);
+          if(this.guideTimer > 0) {
             const text = isMobile ? '左侧摇杆移动 | 右侧按钮攻击/冲刺' : 'WASD 移动 | 空格 攻击 | E 冲刺';
-            ctx.font = `bold ${14 * r.scale}px sans-serif`;
+            ctx.font = `bold ${14*r.scale}px sans-serif`;
             const textWidth = ctx.measureText(text).width;
-            if (textWidth > this.canvas.width - 20) { ctx.font = `bold ${Math.max(10, 14 * r.scale * (this.canvas.width - 20) / textWidth)}px sans-serif`; }
-            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, this.canvas.width, 40 * r.scale); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(text, this.canvas.width / 2, 25 * r.scale);
+            if(textWidth > this.canvas.width - 20) ctx.font = `bold ${Math.max(10, 14*r.scale * (this.canvas.width-20)/textWidth)}px sans-serif`;
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0,0,this.canvas.width, 40*r.scale); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(text, this.canvas.width/2, 25*r.scale);
           }
-          // 移动端虚拟控件绘制
-          if (isMobile) {
+          if(isMobile) {
             const ih = this.input;
-            if (ih.joystick.center && ih.joystick.baseRadius > 0) {
-              const kx = ih.joystick.active ? ih.joystick.rawX : ih.joystick.center.x;
-              const ky = ih.joystick.active ? ih.joystick.rawY : ih.joystick.center.y;
-              r.drawJoystick(ih.joystick.center.x, ih.joystick.center.y, ih.joystick.baseRadius, ih.joystick.knobRadius, kx, ky, ih.joystick.active);
-            }
-            if (ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x, ih.attackBtn.center.y, ih.attackBtn.radius, ih.attackBtn.pressed);
-            if (ih.skillBtn.center) {
-              const cd = this.logic.hero.skillCooldown / CONFIG.SKILL_COOLDOWN;
-              r.drawSkillBtn(ih.skillBtn.center.x, ih.skillBtn.center.y, ih.skillBtn.radius, ih.skillBtn.pressed, cd);
-            }
+            if(ih.joystick.center && ih.joystick.baseRadius > 0) { const kx = ih.joystick.active ? ih.joystick.rawX : ih.joystick.center.x, ky = ih.joystick.active ? ih.joystick.rawY : ih.joystick.center.y; r.drawJoystick(ih.joystick.center.x, ih.joystick.center.y, ih.joystick.baseRadius, ih.joystick.knobRadius, kx, ky, ih.joystick.active); }
+            if(ih.attackBtn.center) r.drawAtkBtn(ih.attackBtn.center.x, ih.attackBtn.center.y, ih.attackBtn.radius, ih.attackBtn.pressed);
+            if(ih.skillBtn.center) { const cd = this.logic.hero.skillCooldown / CONFIG.SKILL_COOLDOWN; r.drawSkillBtn(ih.skillBtn.center.x, ih.skillBtn.center.y, ih.skillBtn.radius, ih.skillBtn.pressed, cd); }
           }
           r.drawTopUI(this.logic.blueTowers, this.logic.redTowers, this.logic.hero);
-          if (this.returnRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.returnRect.x, this.returnRect.y, this.returnRect.w, this.returnRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.returnRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏠', this.returnRect.x + this.returnRect.w / 2, this.returnRect.y + this.returnRect.h / 2); }
-          if (this.restartRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.restartRect.x, this.restartRect.y, this.restartRect.w, this.restartRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.restartRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🔄', this.restartRect.x + this.restartRect.w / 2, this.restartRect.y + this.restartRect.h / 2); }
-          if (this.pauseRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.pauseRect.x, this.pauseRect.y, this.pauseRect.w, this.pauseRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.pauseRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.state === 'paused' ? '▶️' : '⏸️', this.pauseRect.x + this.pauseRect.w / 2, this.pauseRect.y + this.pauseRect.h / 2); }
-          if (this.muteRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.muteRect.x, this.muteRect.y, this.muteRect.w, this.muteRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.muteRect.h * 0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.audio.muted ? '🔇' : '🔊', this.muteRect.x + this.muteRect.w / 2, this.muteRect.y + this.muteRect.h / 2); }
-          if (this.state === 'over') { const stats = { kills: this.logic.hero.kills, towers: this.logic.hero.towersDestroyed, time: Math.floor(this.logic.time) }; this.restartBtnRect = r.drawGameOver(this.logic.victory, stats); }
+          if(this.returnRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.returnRect.x, this.returnRect.y, this.returnRect.w, this.returnRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.returnRect.h*0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏠', this.returnRect.x + this.returnRect.w/2, this.returnRect.y + this.returnRect.h/2); }
+          if(this.restartRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.restartRect.x, this.restartRect.y, this.restartRect.w, this.restartRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.restartRect.h*0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🔄', this.restartRect.x + this.restartRect.w/2, this.restartRect.y + this.restartRect.h/2); }
+          if(this.pauseRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.pauseRect.x, this.pauseRect.y, this.pauseRect.w, this.pauseRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.pauseRect.h*0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.state==='paused'?'▶️':'⏸️', this.pauseRect.x + this.pauseRect.w/2, this.pauseRect.y + this.pauseRect.h/2); }
+          if(this.muteRect) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(this.muteRect.x, this.muteRect.y, this.muteRect.w, this.muteRect.h, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${this.muteRect.h*0.7}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.audio.muted?'🔇':'🔊', this.muteRect.x + this.muteRect.w/2, this.muteRect.y + this.muteRect.h/2); }
+          if(this.state === 'over') { const stats = { kills: this.logic.hero.kills, towers: this.logic.hero.towersDestroyed, time: Math.floor(this.logic.time) }; this.restartBtnRect = r.drawGameOver(this.logic.victory, stats); }
         }
-        start() { if (this.raf) cancelAnimationFrame(this.raf); this.lastTime = performance.now(); this.raf = requestAnimationFrame(t => this.run(t)); }
+        start() { if(this.raf) cancelAnimationFrame(this.raf); this.lastTime = performance.now(); this.raf = requestAnimationFrame(t => this.run(t)); }
       }
 
       const game = new Game();
 
       function handleCanvasClick(pos) {
-        if (game.state === 'menu') {
+        if(game.state === 'menu') {
           const yOff = game.canvas.height * 0.45;
-          for (let i = 0; i < 3; i++) {
+          for(let i = 0; i < 3; i++) {
             const y = yOff + i * 50 * game.renderer.scale;
-            if (pos.y > y - 20 && pos.y < y + 20) {
+            if(pos.y > y - 20 && pos.y < y + 20) {
               game.menuSelection = i;
               game.difficulty = ['easy', 'normal', 'hard'][i];
               game._startGame();
               break;
             }
           }
-        } else if (game.state === 'over' && game.restartBtnRect && game.input._inRect(pos.x, pos.y, game.restartBtnRect)) {
+        } else if(game.state === 'over' && game.restartBtnRect && game.input._inRect(pos.x, pos.y, game.restartBtnRect)) {
           game._restart();
-        } else if (game.returnRect && game.input._inRect(pos.x, pos.y, game.returnRect)) {
+        } else if(game.returnRect && game.input._inRect(pos.x, pos.y, game.returnRect)) {
           game.state = 'menu'; game.logic = null;
-        } else if (game.pauseRect && game.input._inRect(pos.x, pos.y, game.pauseRect)) {
-          if (game.state === 'playing') game.state = 'paused';
-          else if (game.state === 'paused') game.state = 'playing';
-        } else if (game.restartRect && game.state === 'playing' && game.input._inRect(pos.x, pos.y, game.restartRect)) {
+        } else if(game.pauseRect && game.input._inRect(pos.x, pos.y, game.pauseRect)) {
+          if(game.state === 'playing') game.state = 'paused';
+          else if(game.state === 'paused') game.state = 'playing';
+        } else if(game.restartRect && game.state === 'playing' && game.input._inRect(pos.x, pos.y, game.restartRect)) {
           game._restart();
-        } else if (game.muteRect && game.input._inRect(pos.x, pos.y, game.muteRect)) {
+        } else if(game.muteRect && game.input._inRect(pos.x, pos.y, game.muteRect)) {
           game.audio.toggle();
         }
       }
@@ -537,34 +544,72 @@
       game.canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const touch = e.changedTouches[0];
-        if (!touch) return;
+        if(!touch) return;
         const pos = game.input._canvasPos(touch.clientX, touch.clientY);
         handleCanvasClick(pos);
       }, { passive: false });
 
-      window.startGame = function () { document.getElementById('gameCanvas').style.display = 'block'; game.start(); };
+      window.startGame = function() { document.getElementById('gameCanvas').style.display = 'block'; game.start(); };
     })();
   </script>
 
-  <!-- 水印模块 -->
+  <!-- 动态漂浮水印 -->
   <script>
     (function() {
       const div = document.createElement('div');
-      div.className = 'watermark-single';
-      div.innerHTML = '测试阶段，并非最终效果，严谨盗用 | 原作者：谭熙林';
+      div.className = 'floating-watermark';
+      div.innerHTML = '测试阶段，并非最终效果，严谨盗用<br>https://kl520love.github.io/KLYOTVXEL//推塔.html<br>原作者：谭熙林';
       document.body.appendChild(div);
+      let x = Math.random() * (window.innerWidth - 200);
+      let y = Math.random() * (window.innerHeight - 60);
+      let vx = 0.5, vy = 0.4;
+      if(Math.random() < 0.5) vx *= -1;
+      if(Math.random() < 0.5) vy *= -1;
+      function step() {
+        x += vx;
+        y += vy;
+        const maxX = window.innerWidth - div.offsetWidth;
+        const maxY = window.innerHeight - div.offsetHeight;
+        if(x <= 0 || x >= maxX) vx *= -1;
+        if(y <= 0 || y >= maxY) vy *= -1;
+        x = Math.max(0, Math.min(maxX, x));
+        y = Math.max(0, Math.min(maxY, y));
+        div.style.left = x + 'px';
+        div.style.top = y + 'px';
+        requestAnimationFrame(step);
+      }
+      step();
     })();
   </script>
 
-  <!-- 授权验证模块 -->
+  <!-- 账号密码验证模块 -->
   <script>
     (function() {
-      const validCodes = VALID_CODES.map(c => c.toUpperCase());
-      const authOverlay = document.getElementById('auth-overlay'), authInput = document.getElementById('auth-input'), authBtn = document.getElementById('auth-btn'), authError = document.getElementById('auth-error');
-      function verifyCode() { const code = authInput.value.trim().toUpperCase(); if (validCodes.includes(code)) { authOverlay.style.display = 'none'; if (typeof window.startGame === 'function') window.startGame(); else console.error('游戏启动函数未找到'); } else { authError.textContent = '授权码无效，无权访问'; authInput.value = ''; authInput.focus(); } }
-      authBtn.addEventListener('click', verifyCode);
-      authInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') verifyCode(); });
-      window.addEventListener('load', () => { if (authInput) authInput.focus(); });
+      const authOverlay = document.getElementById('auth-overlay');
+      const accountInput = document.getElementById('auth-account');
+      const passwordInput = document.getElementById('auth-password');
+      const authBtn = document.getElementById('auth-btn');
+      const authError = document.getElementById('auth-error');
+
+      function verify() {
+        const account = accountInput.value.trim().toUpperCase();
+        const password = passwordInput.value.trim();
+        if(ACCOUNT_PASSWORDS.hasOwnProperty(account) && ACCOUNT_PASSWORDS[account] === password) {
+          authOverlay.style.display = 'none';
+          if(typeof window.startGame === 'function') window.startGame();
+          else console.error('游戏启动函数未找到');
+        } else {
+          authError.textContent = '账号或密码错误';
+          accountInput.value = '';
+          passwordInput.value = '';
+          accountInput.focus();
+        }
+      }
+
+      authBtn.addEventListener('click', verify);
+      passwordInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') verify(); });
+      accountInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') { passwordInput.focus(); } });
+      window.addEventListener('load', () => { if(accountInput) accountInput.focus(); });
     })();
   </script>
 </body>
