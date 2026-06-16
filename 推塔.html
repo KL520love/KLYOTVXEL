@@ -14,7 +14,6 @@
     @keyframes rot{0%,100%{transform:rotate(0deg)}25%,50%{transform:rotate(90deg)}}
     #rotateHint p{color:#fff;font-size:18px;}
 
-    /* 授权验证界面 – 双输入框 */
     #auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a1a;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'PingFang SC','Microsoft YaHei',sans-serif;}
     .auth-container{width:90%;max-width:400px;padding:30px 20px;background:rgba(20,20,50,0.9);border:1px solid rgba(255,255,255,0.15);border-radius:16px;text-align:center;backdrop-filter:blur(10px);}
     .auth-title{color:#fff;font-size:22px;font-weight:bold;margin-bottom:25px;letter-spacing:2px;}
@@ -25,7 +24,6 @@
     .auth-error{color:#ff6666;font-size:14px;margin-top:12px;min-height:18px;}
     @media(max-width:600px){.auth-container{padding:25px 18px;}.auth-title{font-size:20px;}.auth-input{font-size:15px;}.auth-btn{font-size:16px;}}
 
-    /* 动态漂浮水印 */
     .floating-watermark {
       position: fixed;
       pointer-events: none;
@@ -44,7 +42,6 @@
   <div id="rotateHint"><div class="icon">📱</div><p>请横屏游玩</p></div>
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 账号密码验证界面 -->
   <div id="auth-overlay">
     <div class="auth-container">
       <div class="auth-title">游戏授权验证</div>
@@ -55,14 +52,13 @@
     </div>
   </div>
 
-  <!-- ★ 账号密码配置区 ★ -->
+  <!-- ★ 账号密码配置区（新增 cs-wlz004 / 1234512）★ -->
   <script>
-    // ★★★ 账号-密码映射表 ★★★
-    // 格式：账号（不区分大小写） -> 密码（严格区分大小写）
     const ACCOUNT_PASSWORDS = {
       'gl-txl001': 'synb666',
       'cs-hyh001': 'karina0411',
-      'cs-lqy006': '1029384756'
+      'cs-lqy006': '1029384756',
+      'cs-wlz004': '1234512'        // ← 新增
     };
   </script>
 
@@ -577,10 +573,9 @@
       const authError = document.getElementById('auth-error');
 
       function verify() {
-        const account = accountInput.value.trim().toUpperCase();
+        const accountLower = accountInput.value.trim().toLowerCase();
         const password = passwordInput.value.trim();
-        // 注意：密码区分大小写，直接比对
-        if(ACCOUNT_PASSWORDS.hasOwnProperty(accountInput.value.trim().toLowerCase()) && ACCOUNT_PASSWORDS[accountInput.value.trim().toLowerCase()] === password) {
+        if(ACCOUNT_PASSWORDS.hasOwnProperty(accountLower) && ACCOUNT_PASSWORDS[accountLower] === password) {
           authOverlay.style.display = 'none';
           if(typeof window.startGame === 'function') window.startGame();
           else console.error('游戏启动函数未找到');
