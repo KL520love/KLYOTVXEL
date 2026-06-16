@@ -55,21 +55,18 @@
     </div>
   </div>
 
-  <!-- 账号密码配置区（直接修改） -->
+  <!-- ★ 账号密码配置区 ★ -->
   <script>
     // ★★★ 账号-密码映射表 ★★★
-    // 格式：账号（不区分大小写） -> 密码（区分大小写）
+    // 格式：账号（不区分大小写） -> 密码（严格区分大小写）
     const ACCOUNT_PASSWORDS = {
-      'TXL001': '001',
-      'TXL002': '002',
-      'TXL003': '003',
-      'TXL004': '004',
-      'TXL005': '005'
-      // 可继续添加，例如 'NEWACC': 'newpass'
+      'gl-txl001': 'synb666',
+      'cs-hyh001': 'karina0411',
+      'cs-lqy006': '1029384756'
     };
   </script>
 
-  <!-- 游戏主逻辑 -->
+  <!-- 游戏主逻辑（完全保留原有所有功能） -->
   <script>
     (function() {
       const CONFIG = {
@@ -77,7 +74,6 @@
         MINION_HP: 200, MINION_ATK: 25, MINION_SPD: 150, MINION_RANGE: 55, MINION_INTERVAL: 5,
         TOWER_HP: 1500, TOWER_ATK: 120, TOWER_RANGE: 160,
         BASE_HP: 3000,
-        // 难度系数（简单0.5，普通1.0，困难2.0血量/1.8攻击）
         DIFFICULTY: {
           easy: { hpMul:0.5, atkMul:0.5 },
           normal: { hpMul:1, atkMul:1 },
@@ -86,7 +82,6 @@
         SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
         CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
         JOYSTICK_BASE: 0.1, JOYSTICK_KNOB: 0.045, ATK_BTN: 0.07, JOY_MARGIN: 0.1, ATK_MARGIN: 0.1,
-        // 敌方小兵/防御塔对英雄伤害倍率
         ENEMY_DAMAGE_TO_HERO_MUL: 2.5
       };
 
@@ -169,7 +164,7 @@
       class Projectile {
         constructor(fromX,fromY,toX,toY,color,dmg,target,attackerType) {
           this.startX=fromX; this.startY=fromY; this.toX=toX; this.toY=toY; this.x=fromX; this.y=fromY;
-          this.color=color; this.dmg=dmg; this.target=target; this.attackerType=attackerType; // 记录攻击者类型
+          this.color=color; this.dmg=dmg; this.target=target; this.attackerType=attackerType;
           this.progress=0; this.duration=0.12; this.elapsed=0; this.done=false;
         }
         update(dt) { if(this.done) return; this.elapsed+=dt; this.progress=Math.min(1, this.elapsed/this.duration); const t=this.progress; this.x = this.startX + (this.toX - this.startX)*t; this.y = this.startY + (this.toY - this.startY)*t; if(this.progress>=1) this.done=true; }
@@ -292,23 +287,19 @@
         }
         initUnits() {
           const diff = CONFIG.DIFFICULTY[this.difficulty];
-          // 蓝方单位不变
           this.hero = new Hero(this.blueBaseX+40*this.scale, this.laneY, Team.BLUE);
           this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)];
           this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
-          // 红方单位应用难度系数
           this.redTowers = [
             new Tower(this.redT3X, this.laneY, Team.RED),
             new Tower(this.redT4X, this.laneY, Team.RED)
           ];
           this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
-          // 修改红方防御塔属性
           for(const t of this.redTowers) {
             t.maxHp = Math.floor(CONFIG.TOWER_HP * diff.hpMul);
             t.hp = t.maxHp;
             t.atk = Math.floor(CONFIG.TOWER_ATK * diff.atkMul);
           }
-          // 小兵属性，蓝方默认，红方应用系数
           this.blueMinionHp = CONFIG.MINION_HP;
           this.blueMinionAtk = CONFIG.MINION_ATK;
           this.redMinionHp = Math.floor(CONFIG.MINION_HP * diff.hpMul);
@@ -338,7 +329,6 @@
         createProjectile(from,to) {
           const col = from.team===Team.BLUE?'#88bbff':'#ff8888';
           let dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk;
-          // 如果攻击者是敌方小兵/防御塔 且 目标是英雄，则伤害倍率提升
           if(to instanceof Hero && (from instanceof Minion || from instanceof Tower) && from.team !== to.team) {
             dmg = Math.floor(dmg * CONFIG.ENEMY_DAMAGE_TO_HERO_MUL);
           }
@@ -361,7 +351,6 @@
           this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
           this.hero.updateCooldown(dt); this.hero.updateRespawn(dt); this.hero.updateBoost(dt);
           this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown - dt);
-          // 技能冲刺
           if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
             this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
             const dir = this.hero.facingRight?1:-1;
@@ -370,11 +359,9 @@
             this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
             audio.play(300,0.15,'square',0.15);
           }
-          // 手动攻击（优先级：小兵 > 防御塔 > 水晶）
           if(this.hero.alive && input.isAttack()) {
             if(this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
             const enemies = this.getRedUnits();
-            // 范围内按优先级选择：小兵 > 塔 > 水晶
             const inRange = enemies.filter(e => this.hero.inRange(e));
             const minions = inRange.filter(e => e instanceof Minion);
             const towers = inRange.filter(e => e instanceof Tower);
@@ -385,11 +372,10 @@
             } else if(towers.length > 0) {
               target = towers.reduce((a,b) => this.hero.distanceTo(a) < this.hero.distanceTo(b) ? a : b);
             } else if(crystals.length > 0) {
-              target = crystals[0]; // 一般只有一个水晶
+              target = crystals[0];
             }
             if(target) this.unitAttack(this.hero, target, audio);
           }
-          // 移除自动攻击逻辑，只保留手动攻击
 
           const blueEnemies = this.getRedUnits(), redEnemies = this.getBlueUnits();
           for(const m of this.blueMinions) { m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive&&m.inRange(m.currentTarget)) this.unitAttack(m,m.currentTarget,audio); }
@@ -400,7 +386,6 @@
           const arrived = this.projectiles.filter(p=>p.done); this.projectiles = this.projectiles.filter(p=>!p.done);
           for(const p of arrived) {
             if(p.target && p.target.alive) {
-              // 弹道命中，造成伤害
               p.target.takeDamage(p.dmg);
               audio.hit();
               this.addParticles(p.target.x, p.target.y, 3, '255,200,0');
@@ -594,7 +579,8 @@
       function verify() {
         const account = accountInput.value.trim().toUpperCase();
         const password = passwordInput.value.trim();
-        if(ACCOUNT_PASSWORDS.hasOwnProperty(account) && ACCOUNT_PASSWORDS[account] === password) {
+        // 注意：密码区分大小写，直接比对
+        if(ACCOUNT_PASSWORDS.hasOwnProperty(accountInput.value.trim().toLowerCase()) && ACCOUNT_PASSWORDS[accountInput.value.trim().toLowerCase()] === password) {
           authOverlay.style.display = 'none';
           if(typeof window.startGame === 'function') window.startGame();
           else console.error('游戏启动函数未找到');
