@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-  <title>推塔·测试1.3.1</title>
+  <title>横版推塔·AI英雄版</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -45,155 +45,82 @@
     </div>
   </div>
 
-  <!-- 账号密码配置（保持不变） -->
+  <!-- ★ 账号密码配置区（新增 cs-ljq002） ★ -->
   <script>
     const ACCOUNT_PASSWORDS = {
       'gl-txl001': 'synb666',
       'cs-hyh001': 'karina0411',
       'cs-lqy006': '1029384756',
-      'cs-wlz004': '1234512'
+      'cs-wlz004': '1234512',
+      'cs-ljq002': '18315022997'     // ← 新增
     };
   </script>
 
-  <!-- ==================== 游戏主逻辑（修改版） ==================== -->
+  <!-- ==================== 游戏主逻辑（完全保留） ==================== -->
   <script>
     (function() {
-      // ---------- 配置修改 ----------
       const CONFIG = {
-        // 蓝方英雄属性下调
-        HERO_HP: 600,          // 原800
-        HERO_ATK: 50,          // 原65
-        HERO_SPD: 280,
-        HERO_RANGE: 90,
-        HERO_RESPAWN: 5,
-        // 小兵属性提升
-        MINION_HP: 300,        // 原200
-        MINION_ATK: 35,        // 原25
-        MINION_SPD: 150,
-        MINION_RANGE: 55,
-        MINION_INTERVAL: 5,
-        // 防御塔属性提升
-        TOWER_HP: 2000,        // 原1500
-        TOWER_ATK: 150,        // 原120
-        TOWER_RANGE: 160,
-        // 基地水晶生命调整为原80% (原3000*0.8=2400)
+        HERO_HP: 600, HERO_ATK: 50, HERO_SPD: 280, HERO_RANGE: 90, HERO_RESPAWN: 5,
+        MINION_HP: 300, MINION_ATK: 35, MINION_SPD: 150, MINION_RANGE: 55, MINION_INTERVAL: 5,
+        TOWER_HP: 2000, TOWER_ATK: 150, TOWER_RANGE: 160,
         BASE_HP: 2400,
-        // 难度系数：简单模式更弱 (0.35/0.35)，普通1.0，困难2.0/1.8
-        DIFFICULTY: {
-          easy: { hpMul:0.35, atkMul:0.35 },
-          normal: { hpMul:1, atkMul:1 },
-          hard: { hpMul:2.0, atkMul:1.8 }
-        },
-        SKILL_COOLDOWN: 8,
-        DASH_DISTANCE: 130,
-        CRYSTAL_BOOST_COST: 5,
-        CRYSTAL_BOOST_ATK_MUL: 1.6,
-        CRYSTAL_BOOST_DURATION: 5,
-        // 操作按钮放大系数
-        JOYSTICK_BASE: 0.14,   // 原0.1
-        JOYSTICK_KNOB: 0.06,   // 原0.045
-        ATK_BTN: 0.10,         // 原0.07
-        JOY_MARGIN: 0.08,
-        ATK_MARGIN: 0.08,
+        DIFFICULTY: { easy: { hpMul:0.35, atkMul:0.35 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:2.0, atkMul:1.8 } },
+        SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
+        CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
+        JOYSTICK_BASE: 0.14, JOYSTICK_KNOB: 0.06, ATK_BTN: 0.10, JOY_MARGIN: 0.08, ATK_MARGIN: 0.08,
         ENEMY_DAMAGE_TO_HERO_MUL: 2.5
       };
 
       const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 800;
 
-      // ---------- 音效管理器（新增背景音乐）----------
       class AudioManager {
-        constructor() {
-          this.ctx = null;
-          this.muted = false;
-          this.ready = false;
-          this.bgMusicGain = null;
-          this.bgMusicActive = false;
-        }
-        init() {
-          if(this.ready) return;
-          try {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            this.ready = true;
-          } catch(e){}
-        }
+        constructor() { this.ctx = null; this.muted = false; this.ready = false; this.bgMusicGain = null; this.bgMusicActive = false; }
+        init() { if(this.ready) return; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.ready = true; } catch(e){} }
         play(freq, dur, type='square', vol=0.2, glide=null) {
           if(!this.ready || this.muted || !this.ctx) return;
           const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
           osc.type = type; osc.frequency.setValueAtTime(freq, t);
           if(glide) osc.frequency.linearRampToValueAtTime(glide, t+dur);
           gain.gain.setValueAtTime(vol, t); gain.gain.exponentialRampToValueAtTime(0.001, t+dur);
-          osc.connect(gain); gain.connect(this.ctx.destination);
-          osc.start(t); osc.stop(t+dur);
+          osc.connect(gain); gain.connect(this.ctx.destination); osc.start(t); osc.stop(t+dur);
         }
         attack() { this.play(900,0.07,'square',0.2); setTimeout(()=>this.play(1100,0.05,'square',0.15),30); }
         hit() { this.play(180,0.1,'triangle',0.3); }
         towerDown() { this.play(60,0.5,'sawtooth',0.4,25); this.play(40,0.6,'triangle',0.35,15); }
         victory() { [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>this.play(f,0.2,'square',0.22),i*120)); }
         defeat() { [880,698,523,349,220].forEach((f,i)=>setTimeout(()=>this.play(f,0.25,'triangle',0.25),i*140)); }
-        toggle() {
-          this.muted = !this.muted;
-          if(this.bgMusicGain) {
-            this.bgMusicGain.gain.value = this.muted ? 0 : 0.15;
-          }
-          return this.muted;
-        }
-        // 开始循环背景音乐
+        toggle() { this.muted = !this.muted; if(this.bgMusicGain) this.bgMusicGain.gain.value = this.muted ? 0 : 0.15; return this.muted; }
         startBGM() {
           if(!this.ready || !this.ctx) return;
           if(this.bgMusicActive) return;
           this.bgMusicActive = true;
-          const ctx = this.ctx;
-          const now = ctx.currentTime;
-          const gain = ctx.createGain();
+          const ctx = this.ctx, gain = ctx.createGain();
           gain.gain.value = this.muted ? 0 : 0.15;
           gain.connect(ctx.destination);
           this.bgMusicGain = gain;
-
-          // 简单的低音循环
-          function playNote(freq, startTime, duration) {
-            const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, startTime);
-            const g = ctx.createGain();
-            g.gain.setValueAtTime(0.08, startTime);
-            g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-            osc.connect(g);
-            g.connect(gain);
-            osc.start(startTime);
-            osc.stop(startTime + duration);
-          }
-
-          const notes = [130.81, 164.81, 196.00, 220.00]; // C3, E3, G3, A3
-          let noteIndex = 0;
-          const bpm = 60;
-          const beat = 60 / bpm;
-          const scheduleAhead = 0.1;
-          let nextNoteTime = ctx.currentTime;
-
+          const notes = [130.81, 164.81, 196.00, 220.00];
+          let noteIndex = 0, nextNoteTime = ctx.currentTime;
+          const beat = 60 / 60;
           const scheduler = () => {
-            while (nextNoteTime < ctx.currentTime + scheduleAhead) {
-              playNote(notes[noteIndex % notes.length], nextNoteTime, beat * 0.9);
-              nextNoteTime += beat;
-              noteIndex++;
+            while (nextNoteTime < ctx.currentTime + 0.1) {
+              const osc = ctx.createOscillator();
+              osc.type = 'sine'; osc.frequency.setValueAtTime(notes[noteIndex % notes.length], nextNoteTime);
+              const g = ctx.createGain();
+              g.gain.setValueAtTime(0.08, nextNoteTime);
+              g.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + beat * 0.9);
+              osc.connect(g); g.connect(gain);
+              osc.start(nextNoteTime); osc.stop(nextNoteTime + beat * 0.9);
+              nextNoteTime += beat; noteIndex++;
             }
-            if (this.bgMusicActive) {
-              requestAnimationFrame(scheduler);
-            }
+            if(this.bgMusicActive) requestAnimationFrame(scheduler);
           };
           scheduler();
         }
-        stopBGM() {
-          this.bgMusicActive = false;
-          if(this.bgMusicGain) {
-            this.bgMusicGain.disconnect();
-            this.bgMusicGain = null;
-          }
-        }
+        stopBGM() { this.bgMusicActive = false; if(this.bgMusicGain) { this.bgMusicGain.disconnect(); this.bgMusicGain = null; } }
       }
 
       const Team = Object.freeze({ BLUE:'blue', RED:'red' });
 
-      // ---------- 数据模型 ----------
       class Unit {
         constructor(x,y,team,maxHp,atk,atkSpeed,range) {
           this.x=x; this.y=y; this.team=team; this.maxHp=maxHp; this.hp=maxHp; this.displayHp=maxHp;
@@ -209,7 +136,6 @@
         updateCooldown(dt){ if(this.atkCooldown>0) this.atkCooldown-=dt; if(this.flashTimer>0) this.flashTimer-=dt; }
         hpRatio(){ return Math.max(0, this.hp/this.maxHp); }
         updateDisplayHp(dt){ this.displayHp += (this.hp - this.displayHp) * Math.min(10*dt, 1); }
-        // 按照统一优先级选择目标：小兵 > 塔 > 水晶
         selectTarget(enemies) {
           const inRange = enemies.filter(e => e.alive && this.inRange(e));
           const minions = inRange.filter(e => e instanceof Minion);
@@ -273,7 +199,6 @@
         alive() { return this.life>0; }
       }
 
-      // ---------- 输入处理（触控区域扩大）----------
       class InputHandler {
         constructor(canvas) {
           this.canvas = canvas;
@@ -302,7 +227,6 @@
           if(!this.joystick.center || !this.attackBtn.center) return;
           for(const t of e.changedTouches) {
             const p = this._canvasPos(t.clientX, t.clientY);
-            // 扩大判定区域
             if(!this.joystick.id && this._inCircle(p.x,p.y,this.joystick.center.x,this.joystick.center.y,this.joystick.baseRadius*1.6)) { this.joystick.id=t.identifier; this.joystick.active=true; this._updateJoystick(p.x,p.y); }
             else if(!this.attackBtn.id && this._inCircle(p.x,p.y,this.attackBtn.center.x,this.attackBtn.center.y,this.attackBtn.radius*1.5)) { this.attackBtn.id=t.identifier; this.attackBtn.pressed=true; }
             else if(!this.skillBtn.id && this._inCircle(p.x,p.y,this.skillBtn.center.x,this.skillBtn.center.y,this.skillBtn.radius*1.5)) { this.skillBtn.id=t.identifier; this.skillBtn.pressed=true; }
@@ -326,7 +250,6 @@
         isSkill() { const v = this.skillBtn.pressed || this.keySkill; this.keySkill = false; return v; }
       }
 
-      // ---------- 渲染器（尺寸放大、背景文字）----------
       class Renderer {
         constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; }
         resize(w,h) { this.w=w; this.h=h; this.scale=Math.min(w/1200, h/500, 1.5); }
@@ -339,7 +262,6 @@
           const groundY=laneY+45*this.scale; ctx.fillStyle='#3d5a3d'; ctx.fillRect(0,groundY,w,h-groundY); ctx.fillStyle='#4a7040'; ctx.fillRect(0,groundY,w,6*this.scale);
           ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2*this.scale; ctx.setLineDash([15*this.scale,10*this.scale]); ctx.beginPath(); ctx.moveTo(30,laneY); ctx.lineTo(w-30,laneY); ctx.stroke(); ctx.setLineDash([]);
 
-          // 背景装饰文字
           ctx.save();
           ctx.font = `${12*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
           ctx.fillStyle = 'rgba(200,200,200,0.15)';
@@ -393,7 +315,6 @@
         drawGameOver(win, stats) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); const pw=Math.min(320*this.scale,w*0.7), ph=Math.min(240*this.scale,h*0.6), px=w/2-pw/2, py=h/2-ph/2; ctx.fillStyle='rgba(30,30,50,0.95)'; ctx.strokeStyle=win?'#ffd700':'#ff4444'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke(); ctx.fillStyle=win?'#ffd700':'#ff4444'; ctx.font=`bold ${22*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(win?'胜利！':'失败！',w/2,py+ph*0.25); ctx.fillStyle='#fff'; ctx.font=`${12*this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`,w/2,py+ph*0.45); const btnW=120*this.scale, btnH=36*this.scale, btnX=w/2-btnW/2, btnY=py+ph*0.65; ctx.fillStyle='#4488ff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(btnX,btnY,btnW,btnH,8); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${14*this.scale}px sans-serif`; ctx.fillText('重新开始',w/2,btnY+btnH/2); return {x:btnX, y:btnY, w:btnW, h:btnH}; }
       }
 
-      // ---------- 游戏逻辑（新增AI英雄）----------
       class GameLogic {
         constructor(w,h,scale,difficulty='normal') {
           this.w=w; this.h=h; this.scale=scale; this.difficulty=difficulty;
@@ -403,17 +324,14 @@
           this.blueMinions=[]; this.redMinions=[]; this.projectiles=[]; this.particles=[];
           this.spawnTimer=0; this.gameOver=false; this.victory=false; this.time=0;
           this.hero.skillCooldown=0;
-          // AI英雄
           this.redHero = null;
           this.initAIHero();
         }
         initUnits() {
           const diff = CONFIG.DIFFICULTY[this.difficulty];
-          // 蓝方英雄
           this.hero = new Hero(this.blueBaseX+40*this.scale, this.laneY, Team.BLUE);
           this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)];
           this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
-          // 红方防御塔和水晶，应用难度系数
           this.redTowers = [ new Tower(this.redT3X, this.laneY, Team.RED), new Tower(this.redT4X, this.laneY, Team.RED) ];
           this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
           for(const t of this.redTowers) {
@@ -421,18 +339,15 @@
             t.hp = t.maxHp;
             t.atk = Math.floor(CONFIG.TOWER_ATK * diff.atkMul);
           }
-          // 小兵属性
           this.blueMinionHp = CONFIG.MINION_HP; this.blueMinionAtk = CONFIG.MINION_ATK;
           this.redMinionHp = Math.floor(CONFIG.MINION_HP * diff.hpMul);
           this.redMinionAtk = Math.floor(CONFIG.MINION_ATK * diff.atkMul);
         }
         initAIHero() {
           this.redHero = new Hero(this.redBaseX - 40*this.scale, this.laneY, Team.RED, false);
-          // AI英雄属性可稍弱，或者与玩家一致，这里沿用英雄基础属性，但受难度影响？保持和玩家一致
           this.redHero.maxHp = CONFIG.HERO_HP;
           this.redHero.hp = CONFIG.HERO_HP;
           this.redHero.atk = CONFIG.HERO_ATK;
-          this.redHero.respawnTimer = 0;
         }
         spawnMinion(team) {
           const isBlue = team === Team.BLUE;
@@ -447,24 +362,18 @@
           const col = from.team===Team.BLUE?'#88bbff':'#ff8888';
           let dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk;
           if(to instanceof Hero && (from instanceof Minion || from instanceof Tower) && from.team !== to.team) dmg = Math.floor(dmg * CONFIG.ENEMY_DAMAGE_TO_HERO_MUL);
-          const attackerType = from instanceof Minion ? 'minion' : (from instanceof Tower ? 'tower' : 'hero');
-          const p = new Projectile(from.x, from.y, to.x, to.y, col, dmg, to, attackerType);
+          const p = new Projectile(from.x, from.y, to.x, to.y, col, dmg, to);
           this.projectiles.push(p);
         }
         unitAttack(attacker,target,audio) { if(!attacker.canAttack() || !target.alive) return false; attacker.performAttack(); this.createProjectile(attacker,target); audio.attack(); return true; }
         addParticles(x,y,count,color) { for(let i=0;i<count;i++){ const angle=Math.random()*Math.PI*2, speed=50+Math.random()*80; this.particles.push(new Particle(x,y,Math.cos(angle)*speed,Math.sin(angle)*speed,0.3+Math.random()*0.3,color,2+Math.random()*3)); } }
-
         update(dt, input, audio) {
           if(this.gameOver) return;
           this.time+=dt;
-
-          // 玩家英雄移动
           const {vx,vy}=input.getMovement(); if(vx!==0||vy!==0) this.hero.setMovement(vx,vy); else this.hero.stopMovement();
           this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
           this.hero.updateCooldown(dt); this.hero.updateRespawn(dt); this.hero.updateBoost(dt);
           this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown - dt);
-
-          // 玩家技能
           if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
             this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
             const dir = this.hero.facingRight?1:-1;
@@ -473,40 +382,29 @@
             this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
             audio.play(300,0.15,'square',0.15);
           }
-
-          // 玩家手动攻击（遵循优先级）
           if(this.hero.alive && input.isAttack()) {
             if(this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
             const target = this.hero.selectTarget(this.getRedUnits());
             if(target) this.unitAttack(this.hero, target, audio);
           }
-
-          // AI英雄行为
           const ai = this.redHero;
           if(ai) {
             ai.updateCooldown(dt);
             ai.updateRespawn(dt);
             if(ai.alive) {
-              // 移动：向蓝方基地前进
-              const dir = -1; // 向左
-              ai.setMovement(dir, 0);
+              ai.setMovement(-1, 0);
               ai.updatePosition(dt, this.mapMinX, this.mapMaxX, this.mapMinY, this.mapMaxY);
-              // 攻击：按优先级选择目标
               if(ai.canAttack()) {
                 const target = ai.selectTarget(this.getBlueUnits());
                 if(target) this.unitAttack(ai, target, audio);
               }
             }
           }
-
-          // 小兵与防御塔
           const blueEnemies = this.getRedUnits(), redEnemies = this.getBlueUnits();
           for(const m of this.blueMinions) { m.updateCooldown(dt); m.findTarget(blueEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive) this.unitAttack(m,m.currentTarget,audio); }
           for(const m of this.redMinions) { m.updateCooldown(dt); m.findTarget(redEnemies); m.updateMovement(dt,this.mapMinX,this.mapMaxX); if(m.canAttack()&&m.currentTarget&&m.currentTarget.alive) this.unitAttack(m,m.currentTarget,audio); }
           for(const t of [...this.blueTowers, ...this.redTowers]) { if(!t.alive) continue; t.updateCooldown(dt); t.updateGlow(dt); t.findTarget(t.team===Team.BLUE?redEnemies:blueEnemies); if(t.canAttack()&&t.currentTarget&&t.currentTarget.alive) this.unitAttack(t,t.currentTarget,audio); }
           this.blueBase.updateGlow(dt); this.redBase.updateGlow(dt);
-
-          // 弹道更新
           for(const p of this.projectiles) p.update(dt);
           const arrived = this.projectiles.filter(p=>p.done); this.projectiles = this.projectiles.filter(p=>!p.done);
           for(const p of arrived) {
@@ -517,26 +415,18 @@
               if(!p.target.alive && p.target instanceof Minion && p.target.team!==this.hero.team) { this.hero.crystal += 1; this.hero.kills += 1; }
             }
           }
-
-          // 摧毁检测
           for(const t of [...this.blueTowers, ...this.redTowers]) { if(!t.alive && t._destroyed===undefined) { t._destroyed=true; audio.towerDown(); this.addParticles(t.x,t.y,15,'255,100,0'); if(t.team===Team.RED) this.hero.towersDestroyed++; } }
-          if(ai && !ai.alive && ai.respawnTimer <= 0) { ai.respawn(); } // 简单复活处理
-
-          // 清理
+          if(ai && !ai.alive && ai.respawnTimer <= 0) { ai.respawn(); }
           this.blueMinions=this.blueMinions.filter(m=>m.alive); this.redMinions=this.redMinions.filter(m=>m.alive);
           this.particles=this.particles.filter(p=>p.alive());
           for(const p of this.particles) p.update(dt);
-
           this.spawnTimer+=dt; if(this.spawnTimer>=CONFIG.MINION_INTERVAL) { this.spawnTimer-=CONFIG.MINION_INTERVAL; if(this.blueBase.alive) this.spawnMinion(Team.BLUE); if(this.redBase.alive) this.spawnMinion(Team.RED); }
-
           if(!this.blueBase.alive) { this.gameOver=true; this.victory=false; audio.defeat(); }
           else if(!this.redBase.alive) { this.gameOver=true; this.victory=true; audio.victory(); }
-
           for(const u of [this.hero, ...this.blueMinions, ...this.redMinions, ...this.blueTowers, ...this.redTowers, this.blueBase, this.redBase, this.redHero]) if(u) u.updateDisplayHp(dt);
         }
       }
 
-      // ---------- 游戏主控 ----------
       class Game {
         constructor() {
           this.canvas = document.getElementById('gameCanvas'); this.ctx = this.canvas.getContext('2d');
@@ -589,7 +479,7 @@
           this.logic = new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty);
           this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED);
           this.audio.init();
-          this.audio.startBGM();  // 开始背景音乐
+          this.audio.startBGM();
         }
         _restart() { this.audio.stopBGM(); this._startGame(); }
         run(timestamp) {
@@ -694,7 +584,7 @@
     })();
   </script>
 
-  <!-- 账号密码验证模块（保持不变） -->
+  <!-- 账号密码验证模块 -->
   <script>
     (function() {
       const authOverlay = document.getElementById('auth-overlay');
