@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
-  <title>推塔·测试1.4.1</title>
+  <title>横版推塔·规则更新版</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation;position:fixed;top:0;left:0;}
@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <!-- ★ 账号密码配置区（保持不变） ★ -->
+  <!-- ★ 账号密码配置区（共10组） ★ -->
   <script>
     const ACCOUNT_PASSWORDS = {
       'gl-txl001': 'synb666',
@@ -55,64 +55,30 @@
       'cs-ljq002': '18315022997',
       'cs-lyz010': '110928',
       'cs-wsq007': 'zuohang',
-      'cs-zwh008': 'tj2678'
+      'cs-zwh008': 'tj2678',
+      'cs-zc003': '127124jtsw99',
+      'twjh': '127124jtsw99'
     };
   </script>
 
-  <!-- ==================== 游戏主逻辑（修改版） ==================== -->
+  <!-- ==================== 游戏主逻辑 ==================== -->
   <script>
     (function() {
-      // ---------- 配置（数值已按要求调整） ----------
       const CONFIG = {
-        // 英雄基础属性（玩家与AI对等，难度系数影响双方）
-        HERO_HP: 600,
-        HERO_ATK: 50,
-        HERO_SPD: 280,
-        HERO_RANGE: 110,        // 攻击范围增大
-        HERO_RESPAWN: 5,
-
-        // 小兵属性
-        MINION_HP: 300,
-        MINION_ATK: 35,
-        MINION_SPD: 150,
-        MINION_RANGE: 75,       // 攻击范围增大
-        MINION_INTERVAL: 5,
-
-        // 防御塔属性（攻击力提升，血量不变）
-        TOWER_HP: 2000,
-        TOWER_ATK: 200,         // 攻击力提升
-        TOWER_RANGE: 180,
-
-        // 水晶血量降低
+        HERO_HP: 600, HERO_ATK: 50, HERO_SPD: 280, HERO_RANGE: 110, HERO_RESPAWN: 5,
+        MINION_HP: 300, MINION_ATK: 35, MINION_SPD: 150, MINION_RANGE: 75, MINION_INTERVAL: 5,
+        TOWER_HP: 2000, TOWER_ATK: 200, TOWER_RANGE: 180,
         BASE_HP: 1800,
-
-        // 难度系数（影响双方英雄、红方小兵/塔，蓝方小兵不变）
-        DIFFICULTY: {
-          easy: { hpMul:0.35, atkMul:0.35 },
-          normal: { hpMul:1, atkMul:1 },
-          hard: { hpMul:2.0, atkMul:1.8 }
-        },
-
-        SKILL_COOLDOWN: 8,
-        DASH_DISTANCE: 130,
-        CRYSTAL_BOOST_COST: 5,
-        CRYSTAL_BOOST_ATK_MUL: 1.6,
-        CRYSTAL_BOOST_DURATION: 5,
-
-        JOYSTICK_BASE: 0.14,
-        JOYSTICK_KNOB: 0.06,
-        ATK_BTN: 0.10,
-        JOY_MARGIN: 0.08,
-        ATK_MARGIN: 0.08,
-
+        DIFFICULTY: { easy: { hpMul:0.35, atkMul:0.35 }, normal: { hpMul:1, atkMul:1 }, hard: { hpMul:2.0, atkMul:1.8 } },
+        SKILL_COOLDOWN: 8, DASH_DISTANCE: 130,
+        CRYSTAL_BOOST_COST: 5, CRYSTAL_BOOST_ATK_MUL: 1.6, CRYSTAL_BOOST_DURATION: 5,
+        JOYSTICK_BASE: 0.14, JOYSTICK_KNOB: 0.06, ATK_BTN: 0.10, JOY_MARGIN: 0.08, ATK_MARGIN: 0.08,
         ENEMY_DAMAGE_TO_HERO_MUL: 2.5,
-
-        AI_MOVE_SPEED_MUL: 0.6   // AI英雄移速倍率
+        AI_MOVE_SPEED_MUL: 0.6
       };
 
       const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 800;
 
-      // ---------- 音效管理器（保留背景音乐） ----------
       class AudioManager {
         constructor() { this.ctx = null; this.muted = false; this.ready = false; this.bgMusicGain = null; this.bgMusicActive = false; }
         init() { if(this.ready) return; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.ready = true; } catch(e){} }
@@ -161,7 +127,6 @@
 
       const Team = Object.freeze({ BLUE:'blue', RED:'red' });
 
-      // ---------- 数据模型 ----------
       class Unit {
         constructor(x,y,team,maxHp,atk,atkSpeed,range) {
           this.x=x; this.y=y; this.team=team; this.maxHp=maxHp; this.hp=maxHp; this.displayHp=maxHp;
@@ -228,7 +193,6 @@
         alive() { return this.life>0; }
       }
 
-      // ---------- 输入处理（保留原有放大尺寸） ----------
       class InputHandler {
         constructor(canvas) {
           this.canvas = canvas;
@@ -280,29 +244,50 @@
         isSkill() { const v = this.skillBtn.pressed || this.keySkill; this.keySkill = false; return v; }
       }
 
-      // ---------- 渲染器 ----------
       class Renderer {
         constructor(canvas,ctx) { this.canvas=canvas; this.ctx=ctx; this.w=0; this.h=0; this.scale=1; }
         resize(w,h) { this.w=w; this.h=h; this.scale=Math.min(w/1200, h/500, 1.5); }
         clear() { this.ctx.clearRect(0,0,this.w,this.h); }
         drawMap(laneY) {
           const ctx=this.ctx, w=this.w, h=this.h;
-          const grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,'#1a1a3e'); grad.addColorStop(0.4,'#2d3a6e'); grad.addColorStop(0.6,'#4a6fa5'); grad.addColorStop(1,'#1a2a1a');
-          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
-          ctx.fillStyle='rgba(30,60,140,0.3)'; ctx.fillRect(0,0,w*0.5,h); ctx.fillStyle='rgba(180,30,30,0.2)'; ctx.fillRect(w*0.5,0,w*0.5,h);
-          const groundY=laneY+45*this.scale; ctx.fillStyle='#3d5a3d'; ctx.fillRect(0,groundY,w,h-groundY); ctx.fillStyle='#4a7040'; ctx.fillRect(0,groundY,w,6*this.scale);
-          ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2*this.scale; ctx.setLineDash([15*this.scale,10*this.scale]); ctx.beginPath(); ctx.moveTo(30,laneY); ctx.lineTo(w-30,laneY); ctx.stroke(); ctx.setLineDash([]);
 
-          // 背景装饰文字（增大字号，提高不透明度）
+          // 先绘制天空渐变背景
+          const grad=ctx.createLinearGradient(0,0,0,h);
+          grad.addColorStop(0,'#1a1a3e'); grad.addColorStop(0.4,'#2d3a6e'); grad.addColorStop(0.6,'#4a6fa5'); grad.addColorStop(1,'#1a2a1a');
+          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+
+          // 阵营区域
+          ctx.fillStyle='rgba(30,60,140,0.3)'; ctx.fillRect(0,0,w*0.5,h);
+          ctx.fillStyle='rgba(180,30,30,0.2)'; ctx.fillRect(w*0.5,0,w*0.5,h);
+
+          // ★★★ 背景装饰文字（写在最上层，确保可见） ★★★
           ctx.save();
-          ctx.font = `bold ${16*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          // 第一行：to: aespa
+          ctx.font = `bold ${22*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
           ctx.textAlign = 'left';
-          ctx.fillText('to: aespa', 20, laneY - 60*this.scale);
-          ctx.font = `bold ${14*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
-          ctx.fillText('   *旷野的规则是永不回头', 20, laneY - 35*this.scale);
-          ctx.fillText('                   I just hope you get better and better', 20, laneY + 90*this.scale);
+          ctx.fillText('to: aespa', 30, laneY - 70*this.scale);
+
+          // 第二行：*旷野的规则是永不回头
+          ctx.font = `bold ${18*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillText('   *旷野的规则是永不回头', 30, laneY - 40*this.scale);
+
+          // 第三行：I just hope you get better and better
+          ctx.font = `bold ${16*this.scale}px "PingFang SC","Microsoft YaHei",sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          ctx.textAlign = 'right';
+          ctx.fillText('I just hope you get better and better', w - 30, laneY + 100*this.scale);
           ctx.restore();
+
+          // 地面
+          const groundY=laneY+45*this.scale;
+          ctx.fillStyle='#3d5a3d'; ctx.fillRect(0,groundY,w,h-groundY);
+          ctx.fillStyle='#4a7040'; ctx.fillRect(0,groundY,w,6*this.scale);
+
+          // 兵线
+          ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2*this.scale; ctx.setLineDash([15*this.scale,10*this.scale]);
+          ctx.beginPath(); ctx.moveTo(30,laneY); ctx.lineTo(w-30,laneY); ctx.stroke(); ctx.setLineDash([]);
         }
         drawHpBar(x,y,w,ratio,team) { const ctx=this.ctx, h=4*this.scale, bx=x-w/2, by=y; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(bx-1,by-1,w+2,h+2); ctx.fillStyle='#444'; ctx.fillRect(bx,by,w,h); const hpW=w*ratio, color=ratio>0.5?'#44dd44':ratio>0.25?'#dddd44':'#dd4444'; ctx.fillStyle=color; ctx.fillRect(bx,by,hpW,h); ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(bx,by,hpW,h*0.4); }
         drawUnitCircle(unit, radius, hasArrow=false) {
@@ -347,63 +332,43 @@
         drawGameOver(win, stats) { const ctx=this.ctx, w=this.w, h=this.h; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h); const pw=Math.min(320*this.scale,w*0.7), ph=Math.min(240*this.scale,h*0.6), px=w/2-pw/2, py=h/2-ph/2; ctx.fillStyle='rgba(30,30,50,0.95)'; ctx.strokeStyle=win?'#ffd700':'#ff4444'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(px,py,pw,ph,12); ctx.fill(); ctx.stroke(); ctx.fillStyle=win?'#ffd700':'#ff4444'; ctx.font=`bold ${22*this.scale}px sans-serif`; ctx.textAlign='center'; ctx.fillText(win?'胜利！':'失败！',w/2,py+ph*0.25); ctx.fillStyle='#fff'; ctx.font=`${12*this.scale}px sans-serif`; ctx.fillText(`击杀:${stats.kills}  推塔:${stats.towers}  时间:${stats.time}s`,w/2,py+ph*0.45); const btnW=120*this.scale, btnH=36*this.scale, btnX=w/2-btnW/2, btnY=py+ph*0.65; ctx.fillStyle='#4488ff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(btnX,btnY,btnW,btnH,8); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${14*this.scale}px sans-serif`; ctx.fillText('重新开始',w/2,btnY+btnH/2); return {x:btnX, y:btnY, w:btnW, h:btnH}; }
       }
 
-      // ---------- 游戏逻辑（新增规则） ----------
       class GameLogic {
         constructor(w,h,scale,difficulty='normal') {
           this.w=w; this.h=h; this.scale=scale; this.difficulty=difficulty;
           this.laneY=h*0.56; this.mapMinX=15; this.mapMaxX=w-15; this.mapMinY=this.laneY-60*scale; this.mapMaxY=this.laneY+60*scale;
-          // 关键位置
-          this.blueBaseX=w*0.04; this.blueT1X=w*0.2; this.blueT2X=w*0.37;
-          this.redT3X=w*0.63; this.redT4X=w*0.8; this.redBaseX=w*0.96;
-
-          this.initUnits();
-          this.blueMinions=[]; this.redMinions=[]; this.projectiles=[]; this.particles=[];
+          this.blueBaseX=w*0.04; this.blueT1X=w*0.2; this.blueT2X=w*0.37; this.redT3X=w*0.63; this.redT4X=w*0.8; this.redBaseX=w*0.96;
+          this.initUnits(); this.blueMinions=[]; this.redMinions=[]; this.projectiles=[]; this.particles=[];
           this.spawnTimer=0; this.gameOver=false; this.victory=false; this.time=0;
           this.hero.skillCooldown=0;
           this.redHero = null;
           this.initAIHero();
         }
-
         initUnits() {
           const diff = CONFIG.DIFFICULTY[this.difficulty];
-          // 玩家英雄应用难度系数
           const heroHp = Math.floor(CONFIG.HERO_HP * diff.hpMul);
           const heroAtk = Math.floor(CONFIG.HERO_ATK * diff.atkMul);
           this.hero = new Hero(this.blueBaseX+40*this.scale, this.laneY, Team.BLUE);
-          this.hero.maxHp = heroHp; this.hero.hp = heroHp;
-          this.hero.atk = heroAtk;
-
+          this.hero.maxHp = heroHp; this.hero.hp = heroHp; this.hero.atk = heroAtk;
           this.blueTowers = [new Tower(this.blueT1X, this.laneY, Team.BLUE), new Tower(this.blueT2X, this.laneY, Team.BLUE)];
           this.blueBase = new BaseCrystal(this.blueBaseX, this.laneY, Team.BLUE);
-
           this.redTowers = [ new Tower(this.redT3X, this.laneY, Team.RED), new Tower(this.redT4X, this.laneY, Team.RED) ];
           this.redBase = new BaseCrystal(this.redBaseX, this.laneY, Team.RED);
-
-          // 红方防御塔应用难度系数
           for(const t of this.redTowers) {
-            t.maxHp = Math.floor(CONFIG.TOWER_HP * diff.hpMul);
-            t.hp = t.maxHp;
+            t.maxHp = Math.floor(CONFIG.TOWER_HP * diff.hpMul); t.hp = t.maxHp;
             t.atk = Math.floor(CONFIG.TOWER_ATK * diff.atkMul);
           }
-          // 小兵属性
-          this.blueMinionHp = CONFIG.MINION_HP;
-          this.blueMinionAtk = CONFIG.MINION_ATK;
+          this.blueMinionHp = CONFIG.MINION_HP; this.blueMinionAtk = CONFIG.MINION_ATK;
           this.redMinionHp = Math.floor(CONFIG.MINION_HP * diff.hpMul);
           this.redMinionAtk = Math.floor(CONFIG.MINION_ATK * diff.atkMul);
         }
-
         initAIHero() {
           const diff = CONFIG.DIFFICULTY[this.difficulty];
           this.redHero = new Hero(this.redBaseX - 40*this.scale, this.laneY, Team.RED, false);
-          // 属性对等
           const heroHp = Math.floor(CONFIG.HERO_HP * diff.hpMul);
           const heroAtk = Math.floor(CONFIG.HERO_ATK * diff.atkMul);
-          this.redHero.maxHp = heroHp;
-          this.redHero.hp = heroHp;
-          this.redHero.atk = heroAtk;
-          this.redHero.moveSpeed = CONFIG.HERO_SPD * CONFIG.AI_MOVE_SPEED_MUL; // 移速降低
+          this.redHero.maxHp = heroHp; this.redHero.hp = heroHp; this.redHero.atk = heroAtk;
+          this.redHero.moveSpeed = CONFIG.HERO_SPD * CONFIG.AI_MOVE_SPEED_MUL;
         }
-
         spawnMinion(team) {
           const isBlue = team === Team.BLUE;
           const m = new Minion( isBlue ? this.blueBaseX+30*this.scale : this.redBaseX-30*this.scale, this.laneY, team, isBlue ? this.redBaseX : this.blueBaseX );
@@ -411,46 +376,25 @@
           else { m.maxHp = this.redMinionHp; m.hp = this.redMinionHp; m.atk = this.redMinionAtk; this.redMinions.push(m); }
           return m;
         }
-
-        // 获取所有蓝方单位（包括AI英雄可见）
-        getBlueUnits() {
-          const u=[...this.blueMinions];
-          if(this.hero.alive) u.push(this.hero);
-          for(const t of this.blueTowers) if(t.alive) u.push(t);
-          if(this.blueBase.alive) u.push(this.blueBase);
-          return u;
-        }
-        getRedUnits() {
-          const u=[...this.redMinions];
-          if(this.redHero && this.redHero.alive) u.push(this.redHero);
-          for(const t of this.redTowers) if(t.alive) u.push(t);
-          if(this.redBase.alive) u.push(this.redBase);
-          return u;
-        }
-
-        // 判断建筑是否可被攻击（前序塔存活则免疫）
+        getBlueUnits() { const u=[...this.blueMinions]; if(this.hero.alive) u.push(this.hero); for(const t of this.blueTowers) if(t.alive) u.push(t); if(this.blueBase.alive) u.push(this.blueBase); return u; }
+        getRedUnits() { const u=[...this.redMinions]; if(this.redHero && this.redHero.alive) u.push(this.redHero); for(const t of this.redTowers) if(t.alive) u.push(t); if(this.redBase.alive) u.push(this.redBase); return u; }
         canAttackBuilding(attacker, building) {
           if(!(building instanceof Tower || building instanceof BaseCrystal)) return true;
           const isBlueAttacker = attacker.team === Team.BLUE;
           if(isBlueAttacker) {
-            // 蓝方攻击红方建筑：需按外塔→内塔→水晶顺序
-            if(building === this.redTowers[0]) return true; // 外塔
-            if(building === this.redTowers[1]) return !this.redTowers[0].alive; // 内塔需要外塔已毁
-            if(building === this.redBase) return !this.redTowers[0].alive && !this.redTowers[1].alive; // 水晶需要两塔均毁
+            if(building === this.redTowers[0]) return true;
+            if(building === this.redTowers[1]) return !this.redTowers[0].alive;
+            if(building === this.redBase) return !this.redTowers[0].alive && !this.redTowers[1].alive;
           } else {
-            // 红方攻击蓝方建筑
-            if(building === this.blueTowers[0]) return true; // 外塔（蓝方视角的外塔是blueTowers[0]）
+            if(building === this.blueTowers[0]) return true;
             if(building === this.blueTowers[1]) return !this.blueTowers[0].alive;
             if(building === this.blueBase) return !this.blueTowers[0].alive && !this.blueTowers[1].alive;
           }
           return false;
         }
-
-        // 通用索敌函数：根据单位类型选择目标
         selectTarget(attacker, enemies) {
           const inRange = enemies.filter(e => e.alive && attacker.inRange(e));
           if(attacker instanceof Hero) {
-            // 英雄：优先敌方英雄 > 小兵 > 塔/水晶（且建筑需满足推塔锁）
             const heroes = inRange.filter(e => e instanceof Hero && e !== attacker);
             if(heroes.length > 0) return heroes.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
             const minions = inRange.filter(e => e instanceof Minion);
@@ -458,7 +402,6 @@
             const buildings = inRange.filter(e => (e instanceof Tower || e instanceof BaseCrystal) && this.canAttackBuilding(attacker, e));
             if(buildings.length > 0) return buildings.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
           } else if(attacker instanceof Minion) {
-            // 小兵：优先敌方英雄 > 敌方小兵 > 建筑（且需满足推塔锁）
             const heroes = inRange.filter(e => e instanceof Hero && e !== attacker);
             if(heroes.length > 0) return heroes.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
             const minions = inRange.filter(e => e instanceof Minion);
@@ -466,16 +409,13 @@
             const buildings = inRange.filter(e => (e instanceof Tower || e instanceof BaseCrystal) && this.canAttackBuilding(attacker, e));
             if(buildings.length > 0) return buildings.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
           } else if(attacker instanceof Tower) {
-            // 防御塔：优先敌方英雄 > 小兵 > 不攻击建筑
             const heroes = inRange.filter(e => e instanceof Hero && e !== attacker);
             if(heroes.length > 0) return heroes.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
             const minions = inRange.filter(e => e instanceof Minion);
             if(minions.length > 0) return minions.reduce((a,b) => attacker.distanceTo(a) < attacker.distanceTo(b) ? a : b);
-            // 防御塔不攻击水晶/塔
           }
           return null;
         }
-
         createProjectile(from,to) {
           const col = from.team===Team.BLUE?'#88bbff':'#ff8888';
           let dmg = from instanceof Hero ? from.getEffectiveAtk() : from.atk;
@@ -483,25 +423,15 @@
           const p = new Projectile(from.x, from.y, to.x, to.y, col, dmg, to);
           this.projectiles.push(p);
         }
-        unitAttack(attacker,target,audio) {
-          if(!attacker.canAttack() || !target.alive) return false;
-          attacker.performAttack();
-          this.createProjectile(attacker,target);
-          audio.attack();
-          return true;
-        }
+        unitAttack(attacker,target,audio) { if(!attacker.canAttack() || !target.alive) return false; attacker.performAttack(); this.createProjectile(attacker,target); audio.attack(); return true; }
         addParticles(x,y,count,color) { for(let i=0;i<count;i++){ const angle=Math.random()*Math.PI*2, speed=50+Math.random()*80; this.particles.push(new Particle(x,y,Math.cos(angle)*speed,Math.sin(angle)*speed,0.3+Math.random()*0.3,color,2+Math.random()*3)); } }
-
         update(dt, input, audio) {
           if(this.gameOver) return;
           this.time+=dt;
-
-          // 玩家英雄移动与技能
           const {vx,vy}=input.getMovement(); if(vx!==0||vy!==0) this.hero.setMovement(vx,vy); else this.hero.stopMovement();
           this.hero.updatePosition(dt, this.mapMinX,this.mapMaxX,this.mapMinY,this.mapMaxY);
           this.hero.updateCooldown(dt); this.hero.updateRespawn(dt); this.hero.updateBoost(dt);
           this.hero.skillCooldown = Math.max(0, this.hero.skillCooldown - dt);
-
           if(input.isSkill() && this.hero.alive && this.hero.skillCooldown<=0) {
             this.hero.skillCooldown = CONFIG.SKILL_COOLDOWN;
             const dir = this.hero.facingRight?1:-1;
@@ -510,19 +440,14 @@
             this.addParticles(this.hero.x, this.hero.y, 8, '100,200,255');
             audio.play(300,0.15,'square',0.15);
           }
-
-          // 玩家手动攻击
           if(this.hero.alive && input.isAttack()) {
             if(this.hero.attackCooldown > 0) this.hero.attackCooldown = 0;
             const target = this.selectTarget(this.hero, this.getRedUnits());
             if(target) this.unitAttack(this.hero, target, audio);
           }
-
-          // AI英雄行为
           const ai = this.redHero;
           if(ai) {
-            ai.updateCooldown(dt);
-            ai.updateRespawn(dt);
+            ai.updateCooldown(dt); ai.updateRespawn(dt);
             if(ai.alive) {
               ai.setMovement(-1, 0);
               ai.updatePosition(dt, this.mapMinX, this.mapMaxX, this.mapMinY, this.mapMaxY);
@@ -532,51 +457,32 @@
               }
             }
           }
-
-          // 小兵与防御塔索敌（统一使用selectTarget）
           const blueEnemies = this.getRedUnits(), redEnemies = this.getBlueUnits();
           for(const m of this.blueMinions) {
             m.updateCooldown(dt);
             const target = this.selectTarget(m, blueEnemies);
             m.currentTarget = target;
-            // 小兵推进限制：不能越过前序建筑（由canAttackBuilding自然限制，但移动也要限制）
-            // 移动限制：如果目标建筑无法攻击（前序塔存活），则不应向其移动，这里简化为如果目标是建筑且不可攻击，则改为向最近可攻击的建筑或小兵移动
-            if(m.currentTarget && m.currentTarget instanceof Tower && !this.canAttackBuilding(m, m.currentTarget)) {
-              m.currentTarget = null;
-            }
+            if(m.currentTarget && m.currentTarget instanceof Tower && !this.canAttackBuilding(m, m.currentTarget)) m.currentTarget = null;
             m.updateMovement(dt, this.mapMinX, this.mapMaxX);
-            if(m.canAttack() && m.currentTarget && m.currentTarget.alive) {
-              this.unitAttack(m, m.currentTarget, audio);
-            }
+            if(m.canAttack() && m.currentTarget && m.currentTarget.alive) this.unitAttack(m, m.currentTarget, audio);
           }
           for(const m of this.redMinions) {
             m.updateCooldown(dt);
             const target = this.selectTarget(m, redEnemies);
             m.currentTarget = target;
-            if(m.currentTarget && m.currentTarget instanceof Tower && !this.canAttackBuilding(m, m.currentTarget)) {
-              m.currentTarget = null;
-            }
+            if(m.currentTarget && m.currentTarget instanceof Tower && !this.canAttackBuilding(m, m.currentTarget)) m.currentTarget = null;
             m.updateMovement(dt, this.mapMinX, this.mapMaxX);
-            if(m.canAttack() && m.currentTarget && m.currentTarget.alive) {
-              this.unitAttack(m, m.currentTarget, audio);
-            }
+            if(m.canAttack() && m.currentTarget && m.currentTarget.alive) this.unitAttack(m, m.currentTarget, audio);
           }
-
           for(const t of [...this.blueTowers, ...this.redTowers]) {
             if(!t.alive) continue;
-            t.updateCooldown(dt);
-            t.updateGlow(dt);
+            t.updateCooldown(dt); t.updateGlow(dt);
             const enemies = t.team===Team.BLUE ? redEnemies : blueEnemies;
             const target = this.selectTarget(t, enemies);
             t.currentTarget = target;
-            if(t.canAttack() && t.currentTarget && t.currentTarget.alive) {
-              this.unitAttack(t, t.currentTarget, audio);
-            }
+            if(t.canAttack() && t.currentTarget && t.currentTarget.alive) this.unitAttack(t, t.currentTarget, audio);
           }
-
           this.blueBase.updateGlow(dt); this.redBase.updateGlow(dt);
-
-          // 弹道
           for(const p of this.projectiles) p.update(dt);
           const arrived = this.projectiles.filter(p=>p.done); this.projectiles = this.projectiles.filter(p=>!p.done);
           for(const p of arrived) {
@@ -587,28 +493,18 @@
               if(!p.target.alive && p.target instanceof Minion && p.target.team!==this.hero.team) { this.hero.crystal += 1; this.hero.kills += 1; }
             }
           }
-
-          for(const t of [...this.blueTowers, ...this.redTowers]) {
-            if(!t.alive && t._destroyed===undefined) {
-              t._destroyed=true; audio.towerDown(); this.addParticles(t.x,t.y,15,'255,100,0');
-              if(t.team===Team.RED) this.hero.towersDestroyed++;
-            }
-          }
+          for(const t of [...this.blueTowers, ...this.redTowers]) { if(!t.alive && t._destroyed===undefined) { t._destroyed=true; audio.towerDown(); this.addParticles(t.x,t.y,15,'255,100,0'); if(t.team===Team.RED) this.hero.towersDestroyed++; } }
           if(ai && !ai.alive && ai.respawnTimer <= 0) { ai.respawn(); }
-
           this.blueMinions=this.blueMinions.filter(m=>m.alive); this.redMinions=this.redMinions.filter(m=>m.alive);
           this.particles=this.particles.filter(p=>p.alive());
           for(const p of this.particles) p.update(dt);
           this.spawnTimer+=dt; if(this.spawnTimer>=CONFIG.MINION_INTERVAL) { this.spawnTimer-=CONFIG.MINION_INTERVAL; if(this.blueBase.alive) this.spawnMinion(Team.BLUE); if(this.redBase.alive) this.spawnMinion(Team.RED); }
-
           if(!this.blueBase.alive) { this.gameOver=true; this.victory=false; audio.defeat(); }
           else if(!this.redBase.alive) { this.gameOver=true; this.victory=true; audio.victory(); }
-
           for(const u of [this.hero, ...this.blueMinions, ...this.redMinions, ...this.blueTowers, ...this.redTowers, this.blueBase, this.redBase, this.redHero]) if(u) u.updateDisplayHp(dt);
         }
       }
 
-      // ---------- 游戏主控 ----------
       class Game {
         constructor() {
           this.canvas = document.getElementById('gameCanvas'); this.ctx = this.canvas.getContext('2d');
@@ -660,8 +556,7 @@
           this.state = 'playing'; this.guideTimer = 3;
           this.logic = new GameLogic(this.canvas.width, this.canvas.height, this.renderer.scale, this.difficulty);
           this.logic.spawnMinion(Team.BLUE); this.logic.spawnMinion(Team.RED);
-          this.audio.init();
-          this.audio.startBGM();
+          this.audio.init(); this.audio.startBGM();
         }
         _restart() { this.audio.stopBGM(); this._startGame(); }
         run(timestamp) {
@@ -718,9 +613,7 @@
           const yOff = game.canvas.height * 0.45;
           for(let i=0; i<3; i++) {
             const y = yOff + i*50*game.renderer.scale;
-            if(pos.y > y-25 && pos.y < y+25) {
-              game.menuSelection = i; game.difficulty = ['easy','normal','hard'][i]; game._startGame(); break;
-            }
+            if(pos.y > y-25 && pos.y < y+25) { game.menuSelection = i; game.difficulty = ['easy','normal','hard'][i]; game._startGame(); break; }
           }
         } else if(game.state === 'over' && game.restartBtnRect && game.input._inRect(pos.x, pos.y, game.restartBtnRect)) { game._restart(); }
         else if(game.returnRect && game.input._inRect(pos.x, pos.y, game.returnRect)) { game.state='menu'; game.logic=null; game.audio.stopBGM(); }
@@ -760,7 +653,7 @@
     })();
   </script>
 
-  <!-- 账号密码验证模块（保持不变） -->
+  <!-- 账号密码验证模块 -->
   <script>
     (function() {
       const authOverlay = document.getElementById('auth-overlay');
